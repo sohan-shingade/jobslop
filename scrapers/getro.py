@@ -161,15 +161,34 @@ class GetroScraper(BaseScraper):
             else:
                 posted_date = datetime.now(timezone.utc)
 
+            # Enriched fields
+            hybrid = work_mode == "hybrid"
+            company_slug = org.get("slug")
+            headcount = org.get("headCount")
+            headcount_map = {1: "1-10", 2: "11-50", 3: "51-200", 4: "201-500", 5: "501-1000"}
+            company_size = headcount_map.get(headcount, f"{headcount}") if headcount else None
+            seniority = item.get("seniority")
+            industry_tags = org.get("industryTags", [])
+            industry = industry_tags[0] if industry_tags else None
+            skills_raw = item.get("skills", [])
+            skills = [s if isinstance(s, str) else s.get("label", "") for s in skills_raw] if skills_raw else []
+
             return Job(
                 company=company_name,
-                role=title,
+                title=title,
                 location=location_str,
                 url=job_url,
                 posted_date=posted_date,
                 vc_backers=[self.name],
                 category=categorize_role(title),
                 remote=remote,
+                hybrid=hybrid,
+                company_slug=company_slug,
+                company_size=company_size,
+                seniority=seniority,
+                industry=industry,
+                skills=skills,
+                source_platform="getro",
             )
         except Exception as e:
             self.logger.debug("Failed to parse Getro job: %s", e)
@@ -255,13 +274,14 @@ class GetroScraper(BaseScraper):
 
             return Job(
                 company=company_name,
-                role=title,
+                title=title,
                 location=location_str,
                 url=job_url,
                 posted_date=posted_date,
                 vc_backers=[self.name],
                 category=categorize_role(title),
                 remote=remote,
+                source_platform="getro",
             )
         except Exception as e:
             self.logger.debug("Failed to parse Getro API job: %s", e)

@@ -197,21 +197,21 @@ class ConsiderScraper(BaseScraper):
 
             company_name = item.get("companyName", "Unknown")
 
-            # Locations — Consider returns a list of strings
+            # Locations
             locations = item.get("locations", [])
             if isinstance(locations, list):
                 location_str = " / ".join(locations[:3]) if locations else "Unknown"
             else:
                 location_str = str(locations) if locations else "Unknown"
 
-            remote = item.get("remote", False) or item.get("hybrid", False)
+            remote = bool(item.get("remote", False))
+            hybrid = bool(item.get("hybrid", False))
             if not remote:
                 remote = self._is_remote(location_str, title)
 
-            # URL: prefer applyUrl, fall back to url
             job_url = item.get("applyUrl") or item.get("url", "")
 
-            # Posted date — Consider uses timeStamp (ISO string)
+            # Posted date
             timestamp = item.get("timeStamp", "")
             try:
                 posted_date = datetime.fromisoformat(
@@ -220,15 +220,76 @@ class ConsiderScraper(BaseScraper):
             except (ValueError, AttributeError):
                 posted_date = datetime.now(timezone.utc)
 
+            # Seniority
+            seniority_list = item.get("jobSeniorities", [])
+            seniority = seniority_list[0].get("label") if seniority_list else None
+
+            # Salary (convert to cents)
+            salary_data = item.get("salary") or {}
+            salary_min = None
+            salary_max = None
+            salary_currency = None
+            salary_period = None
+            if salary_data:
+                raw_min = salary_data.get("minValue")
+                raw_max = salary_data.get("maxValue")
+                if raw_min is not None:
+                    salary_min = int(raw_min * 100)
+                if raw_max is not None:
+                    salary_max = int(raw_max * 100)
+                currency_obj = salary_data.get("currency") or {}
+                salary_currency = currency_obj.get("value") if isinstance(currency_obj, dict) else str(currency_obj) if currency_obj else None
+                period_obj = salary_data.get("period") or {}
+                salary_period = period_obj.get("value") if isinstance(period_obj, dict) else str(period_obj) if period_obj else None
+
+            # Department
+            departments = item.get("departments", [])
+            department = departments[0] if departments else None
+
+            # Job type
+            job_types = item.get("jobTypes", [])
+            job_type = job_types[0].get("label") if job_types else None
+
+            # Industry / market
+            markets = item.get("markets", [])
+            industry = markets[0].get("label") if markets else None
+
+            # Skills
+            skills_raw = item.get("skills", []) + item.get("requiredSkills", []) + item.get("preferredSkills", [])
+            skills = list({s.get("label") or s for s in skills_raw if s} )
+
+            # Company metadata
+            company_slug = item.get("companySlug")
+            company_domain = item.get("companyDomain")
+            staff_count = item.get("companyStaffCount")
+            stages = item.get("stages", [])
+            company_size = stages[0].get("label") if stages else (
+                f"{staff_count} employees" if staff_count else None
+            )
+
             return Job(
                 company=company_name,
-                role=title,
+                title=title,
                 location=location_str,
                 url=job_url,
                 posted_date=posted_date,
                 vc_backers=[self.name],
                 category=categorize_role(title),
                 remote=remote,
+                company_slug=company_slug,
+                company_size=company_size,
+                company_domain=company_domain,
+                hybrid=hybrid,
+                seniority=seniority,
+                salary_min=salary_min,
+                salary_max=salary_max,
+                salary_currency=salary_currency,
+                salary_period=salary_period,
+                department=department,
+                job_type=job_type,
+                industry=industry,
+                skills=skills,
+                source_platform="consider",
             )
         except Exception as e:
             self.logger.debug("Failed to parse Consider job: %s", e)

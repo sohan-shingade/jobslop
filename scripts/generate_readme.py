@@ -127,7 +127,7 @@ def generate() -> None:
 
         for job in cat_jobs:
             company = _escape_md(job["company"])
-            role = _escape_md(_truncate(job["role"]))
+            role = _escape_md(_truncate(job.get("title", job.get("role", ""))))
             location = _escape_md(_truncate(job["location"], 40))
             backers = ", ".join(job.get("vc_backers", []))
             backers = _escape_md(_truncate(backers, 50))

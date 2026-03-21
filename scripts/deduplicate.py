@@ -47,7 +47,7 @@ def _company_key(company: str) -> str:
 def _exact_key(job: Job) -> str:
     """Deterministic key for exact-match dedup."""
     company = _company_key(job.company)
-    title = _normalize(job.role)
+    title = _normalize(job.title)
     city = _normalize(job.location.split("/")[0].split(",")[0])
     return f"{company}||{title}||{city}"
 
@@ -62,15 +62,32 @@ def _merge_jobs(existing: Job, duplicate: Job) -> Job:
     posted = min(existing.posted_date, duplicate.posted_date)
     url = existing.url if len(existing.url) >= len(duplicate.url) else duplicate.url
 
+    # Prefer the record with richer data for enriched fields
+    pick = existing if existing.seniority else duplicate
+
     return Job(
         company=existing.company,
-        role=existing.role,
+        title=existing.title,
         location=existing.location,
         url=url,
         posted_date=posted,
         vc_backers=merged_backers,
         category=existing.category,
         remote=existing.remote or duplicate.remote,
+        company_slug=existing.company_slug or duplicate.company_slug,
+        company_size=existing.company_size or duplicate.company_size,
+        company_domain=existing.company_domain or duplicate.company_domain,
+        hybrid=existing.hybrid or duplicate.hybrid,
+        seniority=pick.seniority,
+        salary_min=existing.salary_min or duplicate.salary_min,
+        salary_max=existing.salary_max or duplicate.salary_max,
+        salary_currency=existing.salary_currency or duplicate.salary_currency,
+        salary_period=existing.salary_period or duplicate.salary_period,
+        department=existing.department or duplicate.department,
+        job_type=existing.job_type or duplicate.job_type,
+        industry=existing.industry or duplicate.industry,
+        skills=existing.skills or duplicate.skills,
+        source_platform=existing.source_platform or duplicate.source_platform,
     )
 
 
@@ -110,7 +127,7 @@ def deduplicate(jobs: list[Job]) -> list[Job]:
             found_dup = False
             for i, existing in enumerate(merged):
                 title_score = fuzz.token_sort_ratio(
-                    _normalize(existing.role), _normalize(job.role)
+                    _normalize(existing.title), _normalize(job.title)
                 )
                 if title_score >= FUZZY_THRESHOLD:
                     merged[i] = _merge_jobs(existing, job)

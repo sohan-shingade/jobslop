@@ -11,13 +11,28 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Job:
     company: str
-    role: str
+    title: str  # was "role"
     location: str
     url: str
     posted_date: datetime
     vc_backers: list[str] = field(default_factory=list)
     category: str = "Other"  # SWE, Data Science, Quant, PM, Other
     remote: bool = False
+    # New enriched fields
+    company_slug: str | None = None
+    company_size: str | None = None
+    company_domain: str | None = None
+    hybrid: bool = False
+    seniority: str | None = None  # intern, junior, mid, senior, staff, lead
+    salary_min: int | None = None  # in cents
+    salary_max: int | None = None  # in cents
+    salary_currency: str | None = None
+    salary_period: str | None = None
+    department: str | None = None
+    job_type: str | None = None  # Full-time, Intern, Contract
+    industry: str | None = None
+    skills: list[str] = field(default_factory=list)
+    source_platform: str | None = None
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -27,8 +42,14 @@ class Job:
     @classmethod
     def from_dict(cls, d: dict) -> Job:
         d = dict(d)
-        if isinstance(d["posted_date"], str):
+        if isinstance(d.get("posted_date"), str):
             d["posted_date"] = datetime.fromisoformat(d["posted_date"])
+        # Handle old "role" field name
+        if "role" in d and "title" not in d:
+            d["title"] = d.pop("role")
+        # Drop unknown keys
+        valid = {f.name for f in cls.__dataclass_fields__.values()}
+        d = {k: v for k, v in d.items() if k in valid}
         return cls(**d)
 
 
