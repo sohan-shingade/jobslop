@@ -1,0 +1,14 @@
+# Role keyword filters — only include jobs matching at least one keyword.
+# Leave empty or set enabled: false to include all jobs.
+enabled: false
+
+keywords:
+  - intern
+  - software engineer
+  - data scientist
+  - machine learning
+  - product manager
+  - quantitative
+  - full stack
+  - backend
+  - frontend

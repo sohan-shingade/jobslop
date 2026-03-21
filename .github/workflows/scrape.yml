@@ -1,0 +1,37 @@
+name: Scrape VC Job Boards
+
+on:
+  schedule:
+    - cron: '0 8,20 * * *'  # Run at 8am and 8pm UTC daily
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Run scraper
+        run: python scripts/aggregate.py
+
+      - name: Generate README
+        run: python scripts/generate_readme.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "VC Job Bot"
+          git config user.email "bot@vcjobs.dev"
+          git add data/jobs.json README.md config/network_id_cache.json
+          git diff --staged --quiet || git commit -m "Update job listings $(date -u +%Y-%m-%d)"
+          git push
