@@ -9,3 +9,4 @@ build/
 .superpowers/
 .env
 .env.local
+web/.env.local
