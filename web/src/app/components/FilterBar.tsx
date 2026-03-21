@@ -11,17 +11,17 @@ interface FilterBarProps {
 }
 
 const SORT_OPTIONS: { label: string; field: SortField; dir: SortDir }[] = [
-  { label: "Newest", field: "posted_date", dir: "desc" },
-  { label: "Oldest", field: "posted_date", dir: "asc" },
-  { label: "Salary (high)", field: "salary_max", dir: "desc" },
-  { label: "Salary (low)", field: "salary_max", dir: "asc" },
-  { label: "Company A-Z", field: "company", dir: "asc" },
+  { label: "Newest first", field: "posted_date", dir: "desc" },
+  { label: "Oldest first", field: "posted_date", dir: "asc" },
+  { label: "Highest salary", field: "salary_max", dir: "desc" },
+  { label: "Lowest salary", field: "salary_max", dir: "asc" },
+  { label: "Company A\u2013Z", field: "company", dir: "asc" },
 ];
 
 export default function FilterBar({ filterOptions, total }: FilterBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
   const getParam = (key: string) => searchParams.get(key) || "";
   const getArrayParam = (key: string) => {
@@ -31,7 +31,6 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
 
   const [query, setQuery] = useState(getParam("q"));
 
-  // Sync query from URL on navigation
   useEffect(() => {
     setQuery(getParam("q"));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -47,7 +46,6 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
           params.set(key, val);
         }
       }
-      // Reset to page 1 when filters change
       params.delete("page");
       startTransition(() => {
         router.push(`?${params.toString()}`, { scroll: false });
@@ -56,7 +54,6 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
     [router, searchParams, startTransition]
   );
 
-  // Debounced search
   useEffect(() => {
     const timeout = setTimeout(() => {
       const currentQ = searchParams.get("q") || "";
@@ -74,14 +71,13 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
 
   const isRemote = getParam("remote") === "true";
 
-  // Collect active filter chips
   const chips: { key: string; label: string; value: string }[] = [];
   for (const [key, label] of [
-    ["seniority", "Seniority"],
+    ["seniority", "Level"],
     ["department", "Dept"],
     ["industry", "Industry"],
     ["vc", "VC"],
-    ["category", "Category"],
+    ["category", "Type"],
   ] as const) {
     for (const val of getArrayParam(key)) {
       chips.push({ key, label, value: val });
@@ -95,7 +91,7 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
       return;
     }
     const current = getArrayParam(key);
-    setArrayParam(key, current.filter((v) => v !== value));
+    setArrayParam(key, current.filter((v: string) => v !== value));
   };
 
   const clearAll = () => {
@@ -106,43 +102,55 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
   };
 
   const currentSort = getParam("sort") || "posted_date_desc";
+  const hasFilters = chips.length > 0 || query.length > 0;
 
   return (
-    <div className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800">
-      {/* Search + count row */}
+    <div className="sticky top-0 z-40 bg-[var(--bg)]/95 backdrop-blur-md border-b border-[var(--border)]">
+      {/* Header row */}
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-        <div className="text-lg font-semibold text-zinc-100 tracking-tight whitespace-nowrap">
-          jobslop
+        <div className="flex items-baseline gap-2">
+          <span className="text-[15px] font-semibold tracking-tight text-[var(--text-primary)]">
+            jobslop
+          </span>
+          <span className="text-[11px] font-[family-name:var(--font-geist-mono)] text-[var(--text-tertiary)] tabular-nums">
+            {total.toLocaleString()}{isPending ? "..." : ""}
+          </span>
         </div>
-        <div className="relative flex-1 max-w-md">
+
+        <div className="relative flex-1 max-w-sm">
           <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-tertiary)]"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
             type="text"
             placeholder="Search roles, companies..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
+            className="w-full pl-8 pr-3 py-1.5 bg-transparent border border-[var(--border)] rounded-md text-[13px] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--text-secondary)] transition-colors duration-100"
           />
         </div>
-        <div className="text-sm text-zinc-500 whitespace-nowrap">
-          {total.toLocaleString()} jobs
-        </div>
+
+        {/* Sort */}
+        <select
+          value={currentSort}
+          onChange={(e) => updateParams({ sort: e.target.value })}
+          className="hidden sm:block px-2 py-1.5 rounded-md text-[12px] border border-[var(--border)] bg-transparent text-[var(--text-secondary)] focus:outline-none cursor-pointer"
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={`${o.field}_${o.dir}`} value={`${o.field}_${o.dir}`}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Filters row */}
-      <div className="max-w-7xl mx-auto px-4 pb-3 flex items-center gap-2 flex-wrap">
+      <div className="max-w-7xl mx-auto px-4 pb-2.5 flex items-center gap-1.5 flex-wrap">
         <FilterDropdown
           label="Seniority"
           options={filterOptions.seniorities}
@@ -151,10 +159,10 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
         />
         <button
           onClick={() => updateParams({ remote: isRemote ? null : "true" })}
-          className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
+          className={`px-2.5 py-1 rounded-md text-[12px] border transition-colors duration-100 ${
             isRemote
-              ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
-              : "border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
+              ? "border-emerald-500/30 text-emerald-400/90 bg-emerald-500/10"
+              : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-tertiary)]"
           }`}
         >
           Remote
@@ -184,45 +192,34 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
           onChange={(v) => setArrayParam("category", v)}
         />
 
-        {/* Sort */}
-        <div className="ml-auto">
-          <select
-            value={currentSort}
-            onChange={(e) => updateParams({ sort: e.target.value })}
-            className="px-3 py-1.5 rounded-lg text-sm border border-zinc-700 bg-zinc-800/50 text-zinc-400 focus:outline-none focus:border-zinc-600 cursor-pointer"
+        {hasFilters && (
+          <button
+            onClick={clearAll}
+            className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] ml-1 transition-colors duration-100"
           >
-            {SORT_OPTIONS.map((o) => (
-              <option key={`${o.field}_${o.dir}`} value={`${o.field}_${o.dir}`}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            Reset
+          </button>
+        )}
       </div>
 
-      {/* Active filter chips */}
+      {/* Active chips */}
       {chips.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 pb-3 flex items-center gap-2 flex-wrap">
+        <div className="max-w-7xl mx-auto px-4 pb-2.5 flex items-center gap-1.5 flex-wrap">
           {chips.map((chip) => (
             <span
               key={`${chip.key}-${chip.value}`}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-zinc-800 text-zinc-300 border border-zinc-700"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[var(--bg-raised)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
             >
-              <span className="text-zinc-500">{chip.label}:</span> {chip.value}
+              <span className="text-[var(--text-tertiary)]">{chip.label}:</span>
+              {chip.value === "true" ? "Yes" : chip.value}
               <button
                 onClick={() => removeChip(chip.key, chip.value)}
-                className="ml-0.5 text-zinc-500 hover:text-zinc-300"
+                className="ml-0.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
                 &times;
               </button>
             </span>
           ))}
-          <button
-            onClick={clearAll}
-            className="text-xs text-zinc-500 hover:text-zinc-300 ml-1"
-          >
-            Clear all
-          </button>
         </div>
       )}
     </div>

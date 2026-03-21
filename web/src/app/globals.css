@@ -1,31 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
+  --bg: #0c0c0e;
+  --bg-raised: #141416;
+  --bg-hover: #1a1a1e;
+  --border: #232328;
+  --border-subtle: #1c1c20;
+  --text-primary: #e8e6e3;
+  --text-secondary: #8a8880;
+  --text-tertiary: #5c5a54;
+  --accent: #d4a44a;
+  --accent-muted: #d4a44a33;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
+/* Refined scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+/* Selection */
+::selection {
+  background: var(--accent-muted);
+  color: var(--text-primary);
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+
+/* Tabular numbers for salary/counts */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }

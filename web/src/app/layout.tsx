@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 const geist = Geist({
@@ -7,10 +7,15 @@ const geist = Geist({
   subsets: ["latin"],
 });
 
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "jobslop — VC-Backed Startup Jobs",
+  title: "jobslop",
   description:
-    "Search 11,000+ jobs at startups backed by Sequoia, a16z, Greylock, and 30+ other top VCs. Updated daily.",
+    "10,000+ jobs at startups backed by Sequoia, a16z, Greylock, and 30+ top VCs. Updated daily.",
 };
 
 export default function RootLayout({
@@ -19,8 +24,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geist.variable} dark`}>
-      <body className="min-h-screen bg-zinc-950 text-zinc-100 font-[family-name:var(--font-geist)]">
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
+      <body className="min-h-screen font-[family-name:var(--font-geist)]">
         {children}
       </body>
     </html>

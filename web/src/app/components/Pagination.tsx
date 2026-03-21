@@ -26,17 +26,17 @@ export default function Pagination({ total, page, pageSize }: PaginationProps) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-3 py-8">
-      <div className="text-sm text-zinc-500">
-        Showing {showing.toLocaleString()} of {total.toLocaleString()} jobs
+    <div className="flex flex-col items-center gap-3 py-10">
+      <div className="text-[12px] font-[family-name:var(--font-geist-mono)] text-[var(--text-tertiary)] tabular-nums">
+        {showing.toLocaleString()} of {total.toLocaleString()}
       </div>
       {hasMore && (
         <button
           onClick={loadMore}
           disabled={isPending}
-          className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-lg border border-zinc-700 transition-colors disabled:opacity-50"
+          className="px-5 py-1.5 text-[12px] text-[var(--text-secondary)] border border-[var(--border)] rounded-md hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] transition-colors duration-100 disabled:opacity-40"
         >
-          {isPending ? "Loading..." : "Load more"}
+          {isPending ? "Loading\u2026" : "Load more"}
         </button>
       )}
     </div>

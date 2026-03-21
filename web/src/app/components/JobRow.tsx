@@ -1,20 +1,13 @@
 import type { Job } from "@/lib/types";
 
-// Generate a consistent color from company name
 function avatarColor(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   const colors = [
-    "from-indigo-500 to-purple-600",
-    "from-amber-500 to-red-500",
-    "from-cyan-500 to-blue-600",
-    "from-emerald-500 to-teal-600",
-    "from-pink-500 to-rose-600",
-    "from-orange-500 to-amber-600",
-    "from-violet-500 to-indigo-600",
-    "from-lime-500 to-green-600",
+    "#6366f1", "#f59e0b", "#06b6d4", "#10b981",
+    "#ec4899", "#f97316", "#8b5cf6", "#84cc16",
   ];
   return colors[Math.abs(hash) % colors.length];
 }
@@ -34,92 +27,123 @@ function formatAge(postedDate: string | null): string {
   return `${Math.floor(days / 30)}mo`;
 }
 
-function formatSalary(min: number | null, max: number | null, currency: string | null): string {
-  if (!min && !max) return "—";
+function formatSalary(minCents: number | null, maxCents: number | null, currency: string | null): string {
+  if (!minCents && !maxCents) return "";
+  // Convert cents to dollars
+  const min = minCents ? Math.round(minCents / 100) : null;
+  const max = maxCents ? Math.round(maxCents / 100) : null;
   const fmt = (n: number) => {
     if (n >= 1000) return `${Math.round(n / 1000)}K`;
     return n.toString();
   };
   const c = currency || "USD";
-  const symbol = c === "USD" ? "$" : c === "EUR" ? "€" : c === "GBP" ? "£" : `${c} `;
-  if (min && max) return `${symbol}${fmt(min)}–${fmt(max)}`;
-  if (max) return `${symbol}${fmt(max)}`;
-  if (min) return `${symbol}${fmt(min)}+`;
-  return "—";
+  const sym = c === "USD" ? "$" : c === "EUR" ? "\u20AC" : c === "GBP" ? "\u00A3" : `${c} `;
+  if (min && max) return `${sym}${fmt(min)}\u2013${fmt(max)}`;
+  if (max) return `${sym}${fmt(max)}`;
+  if (min) return `${sym}${fmt(min)}+`;
+  return "";
 }
 
-const seniorityColors: Record<string, string> = {
-  intern: "text-amber-400 bg-amber-400/10",
-  junior: "text-green-400 bg-green-400/10",
-  mid: "text-blue-400 bg-blue-400/10",
-  senior: "text-indigo-400 bg-indigo-400/10",
-  staff: "text-purple-400 bg-purple-400/10",
-  lead: "text-pink-400 bg-pink-400/10",
-  principal: "text-rose-400 bg-rose-400/10",
+function shortenSeniority(s: string): string {
+  const lower = s.toLowerCase();
+  if (lower.includes("intern")) return "Intern";
+  if (lower.includes("entry") || lower.includes("junior")) return "Junior";
+  if (lower.includes("staff")) return "Staff";
+  if (lower.includes("principal")) return "Principal";
+  if (lower.includes("lead")) return "Lead";
+  if (lower.includes("director")) return "Director";
+  if (lower.includes("vp") || lower.includes("vice president")) return "VP";
+  if (lower.includes("senior") || lower.includes("sr")) return "Senior";
+  if (lower.includes("manager")) return "Manager";
+  if (lower.includes("mid")) return "Mid";
+  // Truncate anything else
+  return s.length > 10 ? s.slice(0, 9) + "\u2026" : s;
+}
+
+const seniorityStyle: Record<string, string> = {
+  intern: "text-amber-400/90",
+  junior: "text-lime-400/90",
+  mid: "text-sky-400/90",
+  senior: "text-[var(--accent)]",
+  staff: "text-violet-400/90",
+  lead: "text-pink-400/90",
+  principal: "text-rose-400/90",
+  manager: "text-orange-400/90",
+  director: "text-red-400/90",
+  vp: "text-red-300/90",
 };
+
+function getSeniorityStyle(label: string): string {
+  const key = label.toLowerCase();
+  for (const [k, v] of Object.entries(seniorityStyle)) {
+    if (key.includes(k)) return v;
+  }
+  return "text-[var(--text-secondary)]";
+}
 
 export default function JobRow({ job }: { job: Job }) {
   const initial = job.company.charAt(0).toUpperCase();
   const color = avatarColor(job.company);
   const age = formatAge(job.posted_date);
   const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency);
-  const seniorityKey = job.seniority?.toLowerCase() || "";
-  const seniorityClass = seniorityColors[seniorityKey] || "text-zinc-400 bg-zinc-400/10";
+  const seniority = job.seniority ? shortenSeniority(job.seniority) : null;
 
   return (
     <a
       href={job.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group grid grid-cols-[2.25rem_1fr_8rem_10rem_4.5rem_5.5rem_3rem] items-center gap-3 px-4 py-2.5 border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
+      className="group flex items-center gap-3 px-4 py-2 border-b border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors duration-100"
     >
       {/* Avatar */}
       <div
-        className={`w-9 h-9 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center text-white text-sm font-bold shrink-0`}
+        className="w-7 h-7 rounded-md flex items-center justify-center text-white text-xs font-semibold shrink-0"
+        style={{ backgroundColor: color }}
       >
         {initial}
       </div>
 
-      {/* Title + Company */}
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-zinc-200 truncate group-hover:text-white transition-colors">
+      {/* Title + meta */}
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-medium text-[var(--text-primary)] truncate group-hover:text-white transition-colors duration-100">
           {job.title}
         </div>
-        <div className="text-xs text-zinc-500 truncate">
+        <div className="text-[11px] text-[var(--text-tertiary)] truncate">
           {job.company}
           {job.vc_backers.length > 0 && (
-            <span className="text-zinc-600"> · {job.vc_backers.join(", ")}</span>
+            <span className="hidden sm:inline"> · {job.vc_backers.slice(0, 2).join(", ")}</span>
           )}
         </div>
       </div>
 
-      {/* Company (separate column for sorting) */}
-      <div className="text-sm text-zinc-400 truncate hidden md:block">
-        {job.company}
-      </div>
-
       {/* Location */}
-      <div className="text-sm text-zinc-500 truncate hidden md:block">
+      <div className="hidden md:block w-36 text-[12px] text-[var(--text-secondary)] truncate text-right">
         {job.location || "—"}
-        {job.remote && <span className="ml-1 text-emerald-500">&#x1F3E0;</span>}
+        {job.remote && <span className="ml-1 text-emerald-500/70 text-[10px]">remote</span>}
       </div>
 
       {/* Seniority */}
-      <div className="hidden md:block">
-        {job.seniority && (
-          <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${seniorityClass}`}>
-            {job.seniority}
+      <div className="hidden lg:block w-20 text-right">
+        {seniority && (
+          <span className={`text-[11px] font-medium font-[family-name:var(--font-geist-mono)] ${getSeniorityStyle(seniority)}`}>
+            {seniority}
           </span>
         )}
       </div>
 
       {/* Salary */}
-      <div className="text-sm text-emerald-400/80 text-right hidden lg:block">
-        {salary}
+      <div className="hidden lg:block w-24 text-right">
+        {salary && (
+          <span className="text-[12px] font-[family-name:var(--font-geist-mono)] text-emerald-400/70 tabular-nums">
+            {salary}
+          </span>
+        )}
       </div>
 
       {/* Age */}
-      <div className="text-xs text-zinc-600 text-right">{age}</div>
+      <div className="w-10 text-right text-[11px] font-[family-name:var(--font-geist-mono)] text-[var(--text-tertiary)] tabular-nums">
+        {age}
+      </div>
     </a>
   );
 }
