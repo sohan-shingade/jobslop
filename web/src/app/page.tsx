@@ -1,9 +1,7 @@
 import { Suspense } from "react";
 import { fetchJobs, fetchFilterOptions } from "@/lib/queries";
 import type { Filters, SortField, SortDir } from "@/lib/types";
-import FilterBar from "./components/FilterBar";
-import JobTable from "./components/JobTable";
-import Pagination from "./components/Pagination";
+import PageClient from "./components/PageClient";
 
 const PAGE_SIZE = 50;
 
@@ -44,13 +42,15 @@ async function JobResults({
   ]);
 
   return (
-    <>
-      <FilterBar filterOptions={filterOptions} total={total} />
-      <main className="max-w-7xl mx-auto w-full flex-1">
-        <JobTable jobs={jobs} sort={sort} dir={dir} />
-        <Pagination total={total} page={page} pageSize={PAGE_SIZE} />
-      </main>
-    </>
+    <PageClient
+      jobs={jobs}
+      total={total}
+      filterOptions={filterOptions}
+      sort={sort}
+      dir={dir}
+      page={page}
+      pageSize={PAGE_SIZE}
+    />
   );
 }
 
@@ -66,7 +66,7 @@ export default async function Home({
       <Suspense
         fallback={
           <div className="flex items-center justify-center min-h-screen">
-            <div className="text-zinc-500">Loading jobs...</div>
+            <div className="text-[var(--text-tertiary)]">Loading jobs...</div>
           </div>
         }
       >

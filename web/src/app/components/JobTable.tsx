@@ -2,9 +2,10 @@ import type { Job, SortField, SortDir } from "@/lib/types";
 import JobRow from "./JobRow";
 
 interface JobTableProps {
-  jobs: Job[];
+  jobs: (Job & { match_score?: number; match_reasons?: string[] })[];
   sort: SortField;
   dir: SortDir;
+  showMatch?: boolean;
 }
 
 function SortLink({
@@ -37,7 +38,7 @@ function SortLink({
   );
 }
 
-export default function JobTable({ jobs, sort, dir }: JobTableProps) {
+export default function JobTable({ jobs, sort, dir, showMatch }: JobTableProps) {
   if (jobs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-2">
@@ -51,6 +52,7 @@ export default function JobTable({ jobs, sort, dir }: JobTableProps) {
     <div className="w-full">
       {/* Column headers */}
       <div className="flex items-center gap-3 px-4 py-1.5 text-[10px] text-[var(--text-tertiary)] uppercase tracking-widest border-b border-[var(--border)] bg-[var(--bg)]">
+        {showMatch && <div className="w-10 shrink-0 text-right">Match</div>}
         <div className="w-7 shrink-0" />
         <div className="flex-1">
           <SortLink field="posted_date" label="Role" currentSort={sort} currentDir={dir} />
@@ -64,7 +66,7 @@ export default function JobTable({ jobs, sort, dir }: JobTableProps) {
       </div>
 
       {jobs.map((job) => (
-        <JobRow key={job.id} job={job} />
+        <JobRow key={job.id} job={job} showMatch={showMatch} />
       ))}
     </div>
   );

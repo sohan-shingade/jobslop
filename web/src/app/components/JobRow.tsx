@@ -81,7 +81,7 @@ function getSeniorityStyle(label: string): string {
   return "text-[var(--text-secondary)]";
 }
 
-export default function JobRow({ job }: { job: Job }) {
+export default function JobRow({ job, showMatch }: { job: Job & { match_score?: number; match_reasons?: string[] }; showMatch?: boolean }) {
   const initial = job.company.charAt(0).toUpperCase();
   const color = avatarColor(job.company);
   const age = formatAge(job.posted_date);
@@ -95,6 +95,19 @@ export default function JobRow({ job }: { job: Job }) {
       rel="noopener noreferrer"
       className="group flex items-center gap-3 px-4 py-2 border-b border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors duration-100"
     >
+      {/* Match score */}
+      {showMatch && (
+        <div className="w-10 shrink-0 text-right">
+          {job.match_score != null && (
+            <span className={`text-[12px] font-[family-name:var(--font-geist-mono)] tabular-nums ${
+              job.match_score >= 70 ? "text-emerald-400" : job.match_score >= 40 ? "text-[var(--accent)]" : "text-[var(--text-tertiary)]"
+            }`}>
+              {job.match_score}%
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Avatar */}
       <div
         className="w-7 h-7 rounded-md flex items-center justify-center text-white text-xs font-semibold shrink-0"
