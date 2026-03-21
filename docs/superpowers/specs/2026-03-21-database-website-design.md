@@ -139,7 +139,7 @@ Minimal changes to existing scraping logic:
 3. **Incremental logic stays** — known-URL set comes from `SELECT url FROM jobs` instead of reading `jobs.json`.
 4. **Keep `generate_readme.py`** as optional — can query DB and write README for the GitHub repo.
 
-New Python dependency: `libsql-client`.
+New Python dependency: `libsql-experimental` (pip package name; imported as `libsql_experimental`).
 
 ## Deployment
 
