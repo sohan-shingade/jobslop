@@ -11,7 +11,7 @@ Data is structured JSON at:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import httpx
 
@@ -67,6 +67,9 @@ class SimplifyScraper(BaseScraper):
 
         jobs: list[Job] = []
         skipped_known = 0
+        skipped_old = 0
+        now = datetime.now(timezone.utc)
+        max_age = timedelta(days=60)
 
         for item in listings:
             if not item.get("active", False):
@@ -78,6 +81,14 @@ class SimplifyScraper(BaseScraper):
             if not url:
                 continue
 
+            # Use date_updated (more accurate for re-posted listings)
+            ts = item.get("date_updated") or item.get("date_posted", 0)
+            if isinstance(ts, (int, float)) and ts > 0:
+                posted = datetime.fromtimestamp(ts, tz=timezone.utc)
+                if (now - posted) > max_age:
+                    skipped_old += 1
+                    continue
+
             # Incremental: skip known URLs
             if url in self.known_urls:
                 skipped_known += 1
@@ -88,8 +99,8 @@ class SimplifyScraper(BaseScraper):
                 jobs.append(job)
 
         self.logger.info(
-            "Fetched %d active jobs from %s (%d already known)",
-            len(jobs), self._source["name"], skipped_known,
+            "Fetched %d active jobs from %s (%d already known, %d too old)",
+            len(jobs), self._source["name"], skipped_known, skipped_old,
         )
         return jobs
 
@@ -106,8 +117,8 @@ class SimplifyScraper(BaseScraper):
 
             remote = any("remote" in l.lower() for l in locations)
 
-            # Posted date from unix timestamp
-            posted_ts = item.get("date_posted")
+            # Use date_updated (more accurate) or fall back to date_posted
+            posted_ts = item.get("date_updated") or item.get("date_posted")
             if isinstance(posted_ts, (int, float)):
                 posted_date = datetime.fromtimestamp(posted_ts, tz=timezone.utc)
             else:

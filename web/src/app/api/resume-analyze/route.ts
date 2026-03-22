@@ -188,8 +188,9 @@ Return JSON in this exact format:
   const whereClauses: string[] = [];
   const queryArgs: (string | number)[] = [];
 
-  // Only recent jobs
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  // Date filter — use user's "days" param, or default to 30 days
+  const daysLimit = filters?.days ? parseInt(filters.days, 10) : 30;
+  const cutoff = new Date(Date.now() - daysLimit * 24 * 60 * 60 * 1000).toISOString();
   whereClauses.push("j.posted_date >= ?");
   queryArgs.push(cutoff);
 
