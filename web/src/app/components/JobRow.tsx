@@ -122,10 +122,12 @@ export default function JobRow({ job, showMatch }: { job: Job & { match_score?: 
           {job.title}
         </div>
         <div className="text-[11px] text-[var(--text-tertiary)] truncate">
-          {job.company}
-          {job.vc_backers.length > 0 && (
-            <span className="hidden sm:inline"> · {job.vc_backers.slice(0, 2).join(", ")}</span>
-          )}
+          <span className="text-[var(--text-secondary)]">{job.company}</span>
+          {job.company_description ? (
+            <span> — {job.company_description}{job.industry ? <span className="text-[var(--text-tertiary)]/50"> · {job.industry}</span> : null}</span>
+          ) : (job.industry || job.company_size) ? (
+            <span> · {[job.industry, job.company_size].filter(Boolean).join(" · ")}</span>
+          ) : null}
         </div>
       </div>
 

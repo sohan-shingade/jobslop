@@ -70,6 +70,7 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
   };
 
   const isRemote = getParam("remote") === "true";
+  const isUSOnly = getParam("location") === "us";
 
   const chips: { key: string; label: string; value: string }[] = [];
   for (const [key, label] of [
@@ -84,10 +85,15 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
     }
   }
   if (isRemote) chips.push({ key: "remote", label: "Remote", value: "true" });
+  if (isUSOnly) chips.push({ key: "location", label: "Location", value: "US only" });
 
   const removeChip = (key: string, value: string) => {
     if (key === "remote") {
       updateParams({ remote: null });
+      return;
+    }
+    if (key === "location") {
+      updateParams({ location: null });
       return;
     }
     const current = getArrayParam(key);
@@ -166,6 +172,16 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
           }`}
         >
           Remote
+        </button>
+        <button
+          onClick={() => updateParams({ location: isUSOnly ? null : "us" })}
+          className={`px-2.5 py-1 rounded-md text-[12px] border transition-colors duration-100 ${
+            isUSOnly
+              ? "border-sky-500/30 text-sky-400/90 bg-sky-500/10"
+              : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-tertiary)]"
+          }`}
+        >
+          US Only
         </button>
         <FilterDropdown
           label="Department"

@@ -21,6 +21,7 @@ export interface Job {
   skills: string | null; // JSON array
   category: string | null;
   source_platform: string | null;
+  company_description: string | null;
   vc_backers: string[]; // joined from job_vc_backers
 }
 
@@ -34,6 +35,7 @@ export interface Filters {
   company_size?: string[];
   location?: string[];
   category?: string[];
+  us_only?: boolean;
 }
 
 export type SortField =

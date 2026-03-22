@@ -52,6 +52,10 @@ function buildWhereClause(
     params.push(...filters.vc);
   }
 
+  if (filters.us_only) {
+    clauses.push("(j.location LIKE '%USA%' OR j.location LIKE '%United States%' OR j.location LIKE '%, US%' OR j.location LIKE '%, AL%' OR j.location LIKE '%, AK%' OR j.location LIKE '%, AZ%' OR j.location LIKE '%, AR%' OR j.location LIKE '%, CA%' OR j.location LIKE '%, CO%' OR j.location LIKE '%, CT%' OR j.location LIKE '%, DE%' OR j.location LIKE '%, FL%' OR j.location LIKE '%, GA%' OR j.location LIKE '%, HI%' OR j.location LIKE '%, ID%' OR j.location LIKE '%, IL%' OR j.location LIKE '%, IN%' OR j.location LIKE '%, IA%' OR j.location LIKE '%, KS%' OR j.location LIKE '%, KY%' OR j.location LIKE '%, LA%' OR j.location LIKE '%, ME%' OR j.location LIKE '%, MD%' OR j.location LIKE '%, MA%' OR j.location LIKE '%, MI%' OR j.location LIKE '%, MN%' OR j.location LIKE '%, MS%' OR j.location LIKE '%, MO%' OR j.location LIKE '%, MT%' OR j.location LIKE '%, NE%' OR j.location LIKE '%, NV%' OR j.location LIKE '%, NH%' OR j.location LIKE '%, NJ%' OR j.location LIKE '%, NM%' OR j.location LIKE '%, NY%' OR j.location LIKE '%, NC%' OR j.location LIKE '%, ND%' OR j.location LIKE '%, OH%' OR j.location LIKE '%, OK%' OR j.location LIKE '%, OR%' OR j.location LIKE '%, PA%' OR j.location LIKE '%, RI%' OR j.location LIKE '%, SC%' OR j.location LIKE '%, SD%' OR j.location LIKE '%, TN%' OR j.location LIKE '%, TX%' OR j.location LIKE '%, UT%' OR j.location LIKE '%, VT%' OR j.location LIKE '%, VA%' OR j.location LIKE '%, WA%' OR j.location LIKE '%, WV%' OR j.location LIKE '%, WI%' OR j.location LIKE '%, WY%' OR j.location LIKE '%, DC%')");
+  }
+
   const where = clauses.length > 0 ? "WHERE " + clauses.join(" AND ") : "";
   return { where, params };
 }
@@ -94,6 +98,7 @@ function rowToJob(row: Row): Job {
     skills: row.skills as string | null,
     category: row.category as string | null,
     source_platform: row.source_platform as string | null,
+    company_description: row.company_description as string | null,
     vc_backers: row.vc_backers ? (row.vc_backers as string).split(",") : [],
   };
 }

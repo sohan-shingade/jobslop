@@ -19,6 +19,7 @@ function parseFilters(
   if (params.category) filters.category = String(params.category).split(",");
   if (params.company_size)
     filters.company_size = String(params.company_size).split(",");
+  if (params.location === "us") filters.us_only = true;
 
   const sortParam = String(params.sort || "posted_date_desc");
   const lastUnderscore = sortParam.lastIndexOf("_");
