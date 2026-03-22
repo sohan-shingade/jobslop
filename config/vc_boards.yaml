@@ -187,11 +187,6 @@ boards:
     url: "https://github.com/SimplifyJobs/New-Grad-Positions"
     source_key: "simplify_newgrad"
 
-  # === LEVELS.FYI (internship compensation data) ===
-  - name: "Levels.fyi"
-    platform: levelsfyi
-    url: "https://www.levels.fyi/internships/"
-
   # === CUSTOM SCRAPERS (not yet implemented) ===
   - name: "Y Combinator"
     platform: yc
