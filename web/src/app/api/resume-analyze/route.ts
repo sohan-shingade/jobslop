@@ -161,9 +161,24 @@ Return JSON in this exact format:
     const jsonMatch = content.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON in response");
     profile = JSON.parse(jsonMatch[0]);
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("Claude API error:", e);
-    return NextResponse.json({ error: "Failed to analyze resume" }, { status: 500 });
+    // Surface specific API errors to the user
+    const err = e as { status?: number; message?: string; error?: { message?: string; type?: string } };
+    if (err.status === 401) {
+      return NextResponse.json({ error: "API key is invalid or expired" }, { status: 500 });
+    }
+    if (err.status === 429) {
+      return NextResponse.json({ error: "Claude API rate limit exceeded. Please try again in a minute." }, { status: 429 });
+    }
+    if (err.status === 403) {
+      return NextResponse.json({ error: "API key does not have permission. Check billing/usage limits." }, { status: 500 });
+    }
+    if (err.status === 529) {
+      return NextResponse.json({ error: "Claude is temporarily overloaded. Please try again shortly." }, { status: 503 });
+    }
+    const msg = err.error?.message || err.message || "Failed to analyze resume";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   // Fetch recent jobs from DB
