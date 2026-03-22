@@ -104,14 +104,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { text: string; intent: string };
+  let body: { text: string; intent: string; filters?: Record<string, string> };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { text, intent } = body;
+  const { text, intent, filters } = body;
   if (!text || text.length < 50) {
     return NextResponse.json({ error: "Resume text too short. Is the PDF readable?" }, { status: 400 });
   }
@@ -184,17 +184,65 @@ Return JSON in this exact format:
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  // Fetch recent jobs from DB
-  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  // Build filtered query — apply user's active filters before scoring
+  const whereClauses: string[] = [];
+  const queryArgs: (string | number)[] = [];
+
+  // Only recent jobs
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  whereClauses.push("j.posted_date >= ?");
+  queryArgs.push(cutoff);
+
+  if (filters) {
+    if (filters.q) {
+      whereClauses.push("(j.title LIKE ? OR j.company LIKE ?)");
+      queryArgs.push(`%${filters.q}%`, `%${filters.q}%`);
+    }
+    if (filters.remote === "true") {
+      whereClauses.push("j.remote = 1");
+    }
+    if (filters.seniority) {
+      const vals = filters.seniority.split(",");
+      const senClauses = vals.map(() => "j.seniority LIKE ?");
+      whereClauses.push(`(${senClauses.join(" OR ")})`);
+      vals.forEach((v) => queryArgs.push(`%${v}%`));
+    }
+    if (filters.department) {
+      const vals = filters.department.split(",");
+      whereClauses.push(`j.department IN (${vals.map(() => "?").join(",")})`);
+      queryArgs.push(...vals);
+    }
+    if (filters.industry) {
+      const vals = filters.industry.split(",");
+      whereClauses.push(`j.industry IN (${vals.map(() => "?").join(",")})`);
+      queryArgs.push(...vals);
+    }
+    if (filters.category) {
+      const vals = filters.category.split(",");
+      whereClauses.push(`j.category IN (${vals.map(() => "?").join(",")})`);
+      queryArgs.push(...vals);
+    }
+    if (filters.vc) {
+      const vals = filters.vc.split(",");
+      whereClauses.push(`j.id IN (SELECT job_id FROM job_vc_backers WHERE vc_name IN (${vals.map(() => "?").join(",")}))`);
+      queryArgs.push(...vals);
+    }
+    if (filters.location === "us") {
+      whereClauses.push("(j.location LIKE '%USA%' OR j.location LIKE '%United States%' OR j.location LIKE '%, US%' OR j.location LIKE '%, CA%' OR j.location LIKE '%, NY%' OR j.location LIKE '%, TX%' OR j.location LIKE '%, WA%' OR j.location LIKE '%, MA%' OR j.location LIKE '%, IL%' OR j.location LIKE '%, CO%' OR j.location LIKE '%, GA%' OR j.location LIKE '%, PA%' OR j.location LIKE '%, FL%' OR j.location LIKE '%, VA%' OR j.location LIKE '%, NC%' OR j.location LIKE '%, OH%' OR j.location LIKE '%, OR%' OR j.location LIKE '%, DC%' OR j.location LIKE '%, AZ%' OR j.location LIKE '%, MD%' OR j.location LIKE '%, MN%' OR j.location LIKE '%, NJ%' OR j.location LIKE '%, CT%' OR j.location LIKE '%, UT%' OR j.location LIKE '%, MI%' OR j.location LIKE '%, TN%' OR j.location LIKE '%, MO%' OR j.location LIKE '%, IN%' OR j.location LIKE '%, WI%')");
+    }
+  }
+
+  const whereStr = whereClauses.length > 0 ? "WHERE " + whereClauses.join(" AND ") : "";
+
   const result = await db.execute({
-    sql: `SELECT j.id, j.title, j.company, j.location, j.remote, j.seniority, j.skills, j.industry, j.salary_min, j.salary_max, j.salary_currency, j.posted_date, j.url, j.category, j.department, j.company_size, j.company_domain, j.hybrid, j.salary_period, j.source_platform, j.company_slug,
+    sql: `SELECT j.id, j.title, j.company, j.location, j.remote, j.seniority, j.skills, j.industry, j.salary_min, j.salary_max, j.salary_currency, j.posted_date, j.url, j.category, j.department, j.company_size, j.company_domain, j.company_description, j.hybrid, j.salary_period, j.source_platform, j.company_slug,
           GROUP_CONCAT(DISTINCT b.vc_name) as vc_backers
           FROM jobs j
           LEFT JOIN job_vc_backers b ON j.id = b.job_id
-          WHERE j.posted_date >= ?
+          ${whereStr}
           GROUP BY j.id
           ORDER BY j.posted_date DESC`,
-    args: [cutoff],
+    args: queryArgs,
   });
 
   // Score each job

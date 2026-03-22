@@ -20,6 +20,7 @@ function parseFilters(
   if (params.company_size)
     filters.company_size = String(params.company_size).split(",");
   if (params.location === "us") filters.us_only = true;
+  if (params.days) filters.days = parseInt(String(params.days), 10);
 
   const sortParam = String(params.sort || "posted_date_desc");
   const lastUnderscore = sortParam.lastIndexOf("_");

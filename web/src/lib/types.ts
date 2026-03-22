@@ -36,6 +36,7 @@ export interface Filters {
   location?: string[];
   category?: string[];
   us_only?: boolean;
+  days?: number;
 }
 
 export type SortField =

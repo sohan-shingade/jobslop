@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import type { Job } from "@/lib/types";
 
 interface MatchedJob extends Job {
@@ -9,7 +10,7 @@ interface MatchedJob extends Job {
 }
 
 interface ResumeBarProps {
-  onMatchResults: (jobs: MatchedJob[], total: number) => void;
+  onMatchResults: (jobs: MatchedJob[], total: number, resumeText?: string, intent?: string) => void;
   onClear: () => void;
   isMatching: boolean;
 }
@@ -22,6 +23,7 @@ export default function ResumeBar({ onMatchResults, onClear, isMatching }: Resum
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const searchParams = useSearchParams();
 
   const extractText = useCallback(async (pdfFile: File): Promise<string> => {
     const pdfjsLib = await import("pdfjs-dist");
@@ -52,10 +54,16 @@ export default function ResumeBar({ onMatchResults, onClear, isMatching }: Resum
         return;
       }
 
+      // Pass current filters so the API scores within filtered results
+      const filters: Record<string, string> = {};
+      searchParams.forEach((value, key) => {
+        if (key !== "page" && key !== "sort") filters[key] = value;
+      });
+
       const resp = await fetch("/api/resume-analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, intent }),
+        body: JSON.stringify({ text, intent, filters }),
       });
 
       if (resp.status === 429) {
@@ -72,7 +80,7 @@ export default function ResumeBar({ onMatchResults, onClear, isMatching }: Resum
       }
 
       const data = await resp.json();
-      onMatchResults(data.jobs, data.total);
+      onMatchResults(data.jobs, data.total, text, intent);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       setError(`Failed to analyze resume: ${msg}`);

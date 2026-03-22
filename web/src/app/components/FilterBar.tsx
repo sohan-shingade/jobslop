@@ -86,6 +86,8 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
   }
   if (isRemote) chips.push({ key: "remote", label: "Remote", value: "true" });
   if (isUSOnly) chips.push({ key: "location", label: "Location", value: "US only" });
+  const daysVal = getParam("days");
+  if (daysVal) chips.push({ key: "days", label: "Posted", value: `last ${daysVal}d` });
 
   const removeChip = (key: string, value: string) => {
     if (key === "remote") {
@@ -94,6 +96,10 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
     }
     if (key === "location") {
       updateParams({ location: null });
+      return;
+    }
+    if (key === "days") {
+      updateParams({ days: null });
       return;
     }
     const current = getArrayParam(key);
@@ -183,6 +189,22 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
         >
           US Only
         </button>
+        <select
+          value={getParam("days") || ""}
+          onChange={(e) => updateParams({ days: e.target.value || null })}
+          className={`px-2.5 py-1 rounded-md text-[12px] border transition-colors duration-100 cursor-pointer ${
+            getParam("days")
+              ? "border-[var(--accent)]/30 bg-[var(--accent-muted)] text-[var(--accent)]"
+              : "border-[var(--border)] bg-transparent text-[var(--text-secondary)]"
+          }`}
+        >
+          <option value="">Any time</option>
+          <option value="1">Last 24h</option>
+          <option value="3">Last 3 days</option>
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30">Last 30 days</option>
+        </select>
         <FilterDropdown
           label="Department"
           options={filterOptions.departments}
