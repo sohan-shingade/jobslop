@@ -28,6 +28,8 @@ sys.path.insert(0, str(ROOT))
 from scrapers.base import Job
 from scrapers.consider import ConsiderScraper
 from scrapers.getro import GetroScraper
+from scrapers.simplify import SimplifyScraper
+from scrapers.levelsfyi import LevelsFyiScraper
 from scripts.deduplicate import deduplicate
 
 logging.basicConfig(
@@ -46,6 +48,8 @@ BATCH_SIZE = 200
 PLATFORM_SCRAPERS = {
     "consider": ConsiderScraper,
     "getro": GetroScraper,
+    "simplify": SimplifyScraper,
+    "levelsfyi": LevelsFyiScraper,
 }
 
 

@@ -176,6 +176,22 @@ boards:
     url: "https://gsv.getro.com/jobs"
     network_id: 777
 
+  # === SIMPLIFYJOBS (GitHub JSON — internships + new grad) ===
+  - name: "SimplifyJobs Internships"
+    platform: simplify
+    url: "https://github.com/SimplifyJobs/Summer2026-Internships"
+    source_key: "simplify_internships"
+
+  - name: "SimplifyJobs New Grad"
+    platform: simplify
+    url: "https://github.com/SimplifyJobs/New-Grad-Positions"
+    source_key: "simplify_newgrad"
+
+  # === LEVELS.FYI (internship compensation data) ===
+  - name: "Levels.fyi"
+    platform: levelsfyi
+    url: "https://www.levels.fyi/internships/"
+
   # === CUSTOM SCRAPERS (not yet implemented) ===
   - name: "Y Combinator"
     platform: yc
