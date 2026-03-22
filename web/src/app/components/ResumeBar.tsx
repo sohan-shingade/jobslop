@@ -25,7 +25,7 @@ export default function ResumeBar({ onMatchResults, onClear, isMatching }: Resum
 
   const extractText = useCallback(async (pdfFile: File): Promise<string> => {
     const pdfjsLib = await import("pdfjs-dist");
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
     const buffer = await pdfFile.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
@@ -73,9 +73,10 @@ export default function ResumeBar({ onMatchResults, onClear, isMatching }: Resum
 
       const data = await resp.json();
       onMatchResults(data.jobs, data.total);
-    } catch (e) {
-      setError("Failed to analyze resume. Please try again.");
-      console.error(e);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setError(`Failed to analyze resume: ${msg}`);
+      console.error("Resume analysis error:", e);
     } finally {
       setLoading(false);
     }

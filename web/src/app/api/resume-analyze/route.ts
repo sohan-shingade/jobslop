@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 
 // Rate limiting: 10 requests per IP per 24h
@@ -120,25 +119,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Resume text too large" }, { status: 400 });
   }
 
-  // Extract profile with Claude
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "Resume matching is not configured" }, { status: 503 });
+  // Extract profile with Groq (Llama 3.3 70B — free tier)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) {
+    return NextResponse.json({ error: "Resume matching is not configured (GROQ_API_KEY missing)" }, { status: 503 });
   }
 
   let profile: Profile;
   try {
-    const client = new Anthropic({ apiKey });
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      messages: [
-        {
-          role: "user",
-          content: `Analyze this resume and job search intent. Return ONLY valid JSON, no other text.
+    const groqResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${groqKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          {
+            role: "user",
+            content: `Analyze this resume and job search intent. Return ONLY valid JSON, no other text.
 
 RESUME:
-${text.slice(0, 15000)}
+${text.slice(0, 12000)}
 
 JOB SEARCH INTENT:
 ${intent || "Looking for relevant roles matching my background"}
@@ -152,32 +155,32 @@ Return JSON in this exact format:
   "keywords": ["5-10 additional search keywords combining resume expertise and intent"],
   "location_preference": "location if mentioned in intent, otherwise null"
 }`,
-        },
-      ],
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 1024,
+        response_format: { type: "json_object" },
+      }),
     });
 
-    const content = response.content[0];
-    if (content.type !== "text") throw new Error("Unexpected response type");
-    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON in response");
+    if (!groqResp.ok) {
+      const errData = await groqResp.json().catch(() => ({}));
+      const errMsg = errData?.error?.message || `Groq API error (${groqResp.status})`;
+      console.error("Groq API error:", errData);
+      if (groqResp.status === 429) {
+        return NextResponse.json({ error: "Rate limit exceeded. Please try again in a minute." }, { status: 429 });
+      }
+      return NextResponse.json({ error: errMsg }, { status: 500 });
+    }
+
+    const groqData = await groqResp.json();
+    const responseText = groqData.choices?.[0]?.message?.content || "";
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON in model response");
     profile = JSON.parse(jsonMatch[0]);
   } catch (e: unknown) {
-    console.error("Claude API error:", e);
-    // Surface specific API errors to the user
-    const err = e as { status?: number; message?: string; error?: { message?: string; type?: string } };
-    if (err.status === 401) {
-      return NextResponse.json({ error: "API key is invalid or expired" }, { status: 500 });
-    }
-    if (err.status === 429) {
-      return NextResponse.json({ error: "Claude API rate limit exceeded. Please try again in a minute." }, { status: 429 });
-    }
-    if (err.status === 403) {
-      return NextResponse.json({ error: "API key does not have permission. Check billing/usage limits." }, { status: 500 });
-    }
-    if (err.status === 529) {
-      return NextResponse.json({ error: "Claude is temporarily overloaded. Please try again shortly." }, { status: 503 });
-    }
-    const msg = err.error?.message || err.message || "Failed to analyze resume";
+    console.error("Resume analysis error:", e);
+    const msg = e instanceof Error ? e.message : "Failed to analyze resume";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
