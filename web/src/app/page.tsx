@@ -21,6 +21,7 @@ function parseFilters(
     filters.company_size = String(params.company_size).split(",");
   if (params.location === "us") filters.us_only = true;
   if (params.days) filters.days = parseInt(String(params.days), 10);
+  if (params.source === "vc" || params.source === "simplify") filters.source = String(params.source);
 
   const sortParam = String(params.sort || "posted_date_desc");
   const lastUnderscore = sortParam.lastIndexOf("_");

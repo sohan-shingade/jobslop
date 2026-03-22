@@ -19,12 +19,7 @@ function formatAge(postedDate: string | null): string {
   const days = Math.floor((now.getTime() - posted.getTime()) / (1000 * 60 * 60 * 24));
   if (days < 0) return "new";
   if (days === 0) return "today";
-  if (days === 1) return "1d";
-  if (days < 7) return `${days}d`;
-  if (days < 14) return "1w";
-  if (days < 30) return `${Math.floor(days / 7)}w`;
-  if (days < 60) return "1mo";
-  return `${Math.floor(days / 30)}mo`;
+  return `${days}d`;
 }
 
 function formatSalary(minCents: number | null, maxCents: number | null, currency: string | null): string {

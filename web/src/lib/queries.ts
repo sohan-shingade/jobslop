@@ -62,6 +62,12 @@ function buildWhereClause(
     params.push(cutoff);
   }
 
+  if (filters.source === "vc") {
+    clauses.push("j.source_platform IN ('consider', 'getro')");
+  } else if (filters.source === "simplify") {
+    clauses.push("j.source_platform = 'simplify'");
+  }
+
   const where = clauses.length > 0 ? "WHERE " + clauses.join(" AND ") : "";
   return { where, params };
 }

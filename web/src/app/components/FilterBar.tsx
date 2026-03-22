@@ -71,6 +71,7 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
 
   const isRemote = getParam("remote") === "true";
   const isUSOnly = getParam("location") === "us";
+  const currentSource = getParam("source");
 
   const chips: { key: string; label: string; value: string }[] = [];
   for (const [key, label] of [
@@ -88,6 +89,8 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
   if (isUSOnly) chips.push({ key: "location", label: "Location", value: "US only" });
   const daysVal = getParam("days");
   if (daysVal) chips.push({ key: "days", label: "Posted", value: `last ${daysVal}d` });
+  if (currentSource === "vc") chips.push({ key: "source", label: "Source", value: "VC-backed" });
+  if (currentSource === "simplify") chips.push({ key: "source", label: "Source", value: "SimplifyJobs" });
 
   const removeChip = (key: string, value: string) => {
     if (key === "remote") {
@@ -100,6 +103,10 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
     }
     if (key === "days") {
       updateParams({ days: null });
+      return;
+    }
+    if (key === "source") {
+      updateParams({ source: null });
       return;
     }
     const current = getArrayParam(key);
@@ -204,6 +211,19 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
           <option value="7">Last 7 days</option>
           <option value="14">Last 14 days</option>
           <option value="30">Last 30 days</option>
+        </select>
+        <select
+          value={currentSource || ""}
+          onChange={(e) => updateParams({ source: e.target.value || null })}
+          className={`px-2.5 py-1 rounded-md text-[12px] border transition-colors duration-100 cursor-pointer ${
+            currentSource
+              ? "border-violet-500/30 bg-violet-500/10 text-violet-400/90"
+              : "border-[var(--border)] bg-transparent text-[var(--text-secondary)]"
+          }`}
+        >
+          <option value="">All sources</option>
+          <option value="vc">VC-backed only</option>
+          <option value="simplify">SimplifyJobs</option>
         </select>
         <FilterDropdown
           label="Department"
