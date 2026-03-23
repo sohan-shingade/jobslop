@@ -150,6 +150,11 @@ export default function JobRow({ job, showMatch }: { job: Job & { match_score?: 
         )}
       </div>
 
+      {/* VC Backer */}
+      <div className="hidden xl:block w-32 text-right text-[11px] text-[var(--text-tertiary)] truncate">
+        {job.vc_backers.length > 0 ? job.vc_backers.slice(0, 2).join(", ") : "—"}
+      </div>
+
       {/* Age */}
       <div className="w-10 text-right text-[11px] font-[family-name:var(--font-geist-mono)] text-[var(--text-tertiary)] tabular-nums">
         {age}

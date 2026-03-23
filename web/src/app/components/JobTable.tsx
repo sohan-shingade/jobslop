@@ -62,6 +62,7 @@ export default function JobTable({ jobs, sort, dir, showMatch }: JobTableProps) 
         <div className="hidden lg:block w-24 text-right">
           <SortLink field="salary_max" label="Salary" currentSort={sort} currentDir={dir} />
         </div>
+        <div className="hidden xl:block w-32 text-right">VC Backer</div>
         <div className="w-10 text-right">Age</div>
       </div>
 
