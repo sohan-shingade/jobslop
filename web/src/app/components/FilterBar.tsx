@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState, useEffect, useTransition } from "react";
+import { track } from "@vercel/analytics";
 import FilterDropdown from "./FilterDropdown";
 import type { FilterOptions, SortField, SortDir } from "@/lib/types";
 
@@ -59,6 +60,7 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
       const currentQ = searchParams.get("q") || "";
       if (query !== currentQ) {
         updateParams({ q: query || null });
+        if (query) track("search", { query });
       }
     }, 300);
     return () => clearTimeout(timeout);
@@ -67,6 +69,7 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
 
   const setArrayParam = (key: string, values: string[]) => {
     updateParams({ [key]: values.length > 0 ? values.join(",") : null });
+    if (values.length > 0) track("filter", { type: key, values: values.join(",") });
   };
 
   const isRemote = getParam("remote") === "true";

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { track } from "@vercel/analytics";
 import type { Job } from "@/lib/types";
 
 interface MatchedJob extends Job {
@@ -80,6 +81,7 @@ export default function ResumeBar({ onMatchResults, onClear, isMatching }: Resum
       }
 
       const data = await resp.json();
+      track("resume_match", { matches: data.total, intent: intent || "none" });
       onMatchResults(data.jobs, data.total, text, intent);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Unknown error";
