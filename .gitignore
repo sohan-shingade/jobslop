@@ -10,3 +10,5 @@ build/
 .env
 .env.local
 web/.env.local
+data/
+blueprint.md
