@@ -119,13 +119,16 @@ def upsert_jobs(http_url, token, jobs: list[Job]):
     for job in jobs:
         jid = job_id(job.url)
         skills_json = json.dumps(job.skills) if job.skills else None
+        hiring_json = json.dumps(job.hiring_period) if job.hiring_period else None
+        edu_json = json.dumps(job.education_level) if job.education_level else None
 
         stmts.append((
             """INSERT INTO jobs (id, title, company, company_slug, company_size, company_domain,
                location, remote, hybrid, url, posted_date, seniority,
                salary_min, salary_max, salary_currency, salary_period,
-               department, job_type, industry, skills, category, source_platform, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+               department, job_type, industry, skills, category, source_platform,
+               hiring_period, education_level, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                ON CONFLICT(id) DO UPDATE SET
                title=excluded.title, company=excluded.company, company_slug=excluded.company_slug,
                company_size=COALESCE(excluded.company_size, company_size),
@@ -142,13 +145,15 @@ def upsert_jobs(http_url, token, jobs: list[Job]):
                industry=COALESCE(excluded.industry, industry),
                skills=COALESCE(excluded.skills, skills),
                category=excluded.category, source_platform=excluded.source_platform,
+               hiring_period=COALESCE(excluded.hiring_period, hiring_period),
+               education_level=COALESCE(excluded.education_level, education_level),
                updated_at=datetime('now')""",
             [jid, job.title, job.company, job.company_slug, job.company_size,
              job.company_domain, job.location, int(job.remote), int(job.hybrid),
              job.url, job.posted_date.isoformat(), job.seniority,
              job.salary_min, job.salary_max, job.salary_currency, job.salary_period,
              job.department, job.job_type, job.industry, skills_json,
-             job.category, job.source_platform],
+             job.category, job.source_platform, hiring_json, edu_json],
         ))
 
         for vc in job.vc_backers:

@@ -22,6 +22,8 @@ function parseFilters(
   if (params.location === "us") filters.us_only = true;
   if (params.days) filters.days = parseInt(String(params.days), 10);
   if (params.source === "vc" || params.source === "simplify") filters.source = String(params.source);
+  if (params.hiring_period) filters.hiring_period = String(params.hiring_period).split(",");
+  if (params.education_level) filters.education_level = String(params.education_level).split(",");
 
   const sortParam = String(params.sort || "posted_date_desc");
   const lastUnderscore = sortParam.lastIndexOf("_");

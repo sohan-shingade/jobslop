@@ -88,6 +88,8 @@ def _merge_jobs(existing: Job, duplicate: Job) -> Job:
         industry=existing.industry or duplicate.industry,
         skills=existing.skills or duplicate.skills,
         source_platform=existing.source_platform or duplicate.source_platform,
+        hiring_period=list(set(existing.hiring_period + duplicate.hiring_period)),
+        education_level=list(set(existing.education_level + duplicate.education_level)),
     )
 
 

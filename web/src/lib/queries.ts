@@ -68,6 +68,22 @@ function buildWhereClause(
     clauses.push("j.source_platform = 'simplify'");
   }
 
+  if (filters.hiring_period?.length) {
+    const hpClauses = filters.hiring_period.map(() =>
+      "EXISTS (SELECT 1 FROM json_each(j.hiring_period) WHERE json_each.value = ?)"
+    );
+    clauses.push(`(${hpClauses.join(" OR ")})`);
+    params.push(...filters.hiring_period);
+  }
+
+  if (filters.education_level?.length) {
+    const elClauses = filters.education_level.map(() =>
+      "EXISTS (SELECT 1 FROM json_each(j.education_level) WHERE json_each.value = ?)"
+    );
+    clauses.push(`(${elClauses.join(" OR ")})`);
+    params.push(...filters.education_level);
+  }
+
   const where = clauses.length > 0 ? "WHERE " + clauses.join(" AND ") : "";
   return { where, params };
 }
@@ -111,6 +127,8 @@ function rowToJob(row: Row): Job {
     category: row.category as string | null,
     source_platform: row.source_platform as string | null,
     company_description: row.company_description as string | null,
+    hiring_period: row.hiring_period as string | null,
+    education_level: row.education_level as string | null,
     vc_backers: row.vc_backers ? (row.vc_backers as string).split(",") : [],
   };
 }
@@ -151,7 +169,7 @@ export async function fetchJobs(
 }
 
 export async function fetchFilterOptions(): Promise<FilterOptions> {
-  const [seniorities, departments, industries, vcs, companySizes, locations, categories] =
+  const [seniorities, departments, industries, vcs, companySizes, locations, categories, hiringPeriods, educationLevels] =
     await Promise.all([
       db.execute("SELECT DISTINCT seniority FROM jobs WHERE seniority IS NOT NULL AND seniority != '' ORDER BY seniority"),
       db.execute("SELECT DISTINCT department FROM jobs WHERE department IS NOT NULL AND department != '' ORDER BY department"),
@@ -160,6 +178,8 @@ export async function fetchFilterOptions(): Promise<FilterOptions> {
       db.execute("SELECT DISTINCT company_size FROM jobs WHERE company_size IS NOT NULL AND company_size != '' ORDER BY company_size"),
       db.execute("SELECT DISTINCT location FROM jobs WHERE location IS NOT NULL AND location != '' ORDER BY location LIMIT 200"),
       db.execute("SELECT DISTINCT category FROM jobs WHERE category IS NOT NULL AND category != '' ORDER BY category"),
+      db.execute("SELECT DISTINCT value FROM jobs, json_each(jobs.hiring_period) WHERE hiring_period IS NOT NULL ORDER BY value"),
+      db.execute("SELECT DISTINCT value FROM jobs, json_each(jobs.education_level) WHERE education_level IS NOT NULL ORDER BY value"),
     ]);
 
   return {
@@ -170,5 +190,7 @@ export async function fetchFilterOptions(): Promise<FilterOptions> {
     company_sizes: companySizes.rows.map((r) => r.company_size as string),
     locations: locations.rows.map((r) => r.location as string),
     categories: categories.rows.map((r) => r.category as string),
+    hiring_periods: hiringPeriods.rows.map((r) => r.value as string),
+    education_levels: educationLevels.rows.map((r) => r.value as string),
   };
 }

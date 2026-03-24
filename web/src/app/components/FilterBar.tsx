@@ -78,6 +78,8 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
 
   const chips: { key: string; label: string; value: string }[] = [];
   for (const [key, label] of [
+    ["hiring_period", "Period"],
+    ["education_level", "Edu"],
     ["seniority", "Level"],
     ["department", "Dept"],
     ["industry", "Industry"],
@@ -173,6 +175,18 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
 
       {/* Filters row */}
       <div className="max-w-7xl mx-auto px-4 pb-2.5 flex items-center gap-1.5 flex-wrap">
+        <FilterDropdown
+          label="Hiring Period"
+          options={filterOptions.hiring_periods}
+          selected={getArrayParam("hiring_period")}
+          onChange={(v) => setArrayParam("hiring_period", v)}
+        />
+        <FilterDropdown
+          label="Education"
+          options={filterOptions.education_levels}
+          selected={getArrayParam("education_level")}
+          onChange={(v) => setArrayParam("education_level", v)}
+        />
         <FilterDropdown
           label="Seniority"
           options={filterOptions.seniorities}

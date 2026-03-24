@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from .base import BaseScraper, Job, categorize_role
+from .base import BaseScraper, Job, categorize_role, classify_hiring_period, classify_education_level
 
 logger = logging.getLogger(__name__)
 
@@ -290,6 +290,8 @@ class ConsiderScraper(BaseScraper):
                 industry=industry,
                 skills=skills,
                 source_platform="consider",
+                hiring_period=classify_hiring_period(title, seniority, job_type),
+                education_level=classify_education_level(title),
             )
         except Exception as e:
             self.logger.debug("Failed to parse Consider job: %s", e)

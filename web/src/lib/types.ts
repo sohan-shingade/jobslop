@@ -22,6 +22,8 @@ export interface Job {
   category: string | null;
   source_platform: string | null;
   company_description: string | null;
+  hiring_period: string | null; // JSON array
+  education_level: string | null; // JSON array
   vc_backers: string[]; // joined from job_vc_backers
 }
 
@@ -38,6 +40,8 @@ export interface Filters {
   us_only?: boolean;
   days?: number;
   source?: string; // "vc" or "simplify"
+  hiring_period?: string[];
+  education_level?: string[];
 }
 
 export type SortField =
@@ -55,4 +59,6 @@ export interface FilterOptions {
   company_sizes: string[];
   locations: string[];
   categories: string[];
+  hiring_periods: string[];
+  education_levels: string[];
 }

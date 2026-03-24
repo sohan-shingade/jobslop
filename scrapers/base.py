@@ -33,6 +33,10 @@ class Job:
     industry: str | None = None
     skills: list[str] = field(default_factory=list)
     source_platform: str | None = None
+    # Hiring period: "Currently Hiring", "2026 Summer", "2026 New Grad", "2027 Summer", "2027 New Grad"
+    hiring_period: list[str] = field(default_factory=list)
+    # Education level: "Undergraduate", "Graduate", "PhD"
+    education_level: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -81,6 +85,86 @@ def categorize_role(title: str) -> str:
     for category, keywords in CATEGORY_KEYWORDS.items():
         if any(kw in title_lower for kw in keywords):
             return category
+
+
+def classify_hiring_period(title: str, seniority: str | None = None, job_type: str | None = None) -> list[str]:
+    """Classify a job into hiring periods based on title and metadata."""
+    t = title.lower()
+    sen = (seniority or "").lower()
+    jt = (job_type or "").lower()
+    periods = []
+
+    # Explicit year/season in title
+    if "2027" in t:
+        if "summer" in t or "intern" in t:
+            periods.append("2027 Summer")
+        elif "new grad" in t or "new graduate" in t:
+            periods.append("2027 New Grad")
+        elif "spring" in t or "fall" in t or "winter" in t:
+            periods.append("2027 Summer")  # close enough
+        else:
+            periods.append("2027 New Grad")
+    if "2026" in t:
+        if "summer" in t or "intern" in t:
+            periods.append("2026 Summer")
+        elif "new grad" in t or "new graduate" in t or "university grad" in t:
+            periods.append("2026 New Grad")
+        elif "fall" in t or "spring" in t or "winter" in t:
+            periods.append("2026 Summer")  # seasonal = intern-like
+        else:
+            periods.append("2026 New Grad")
+
+    # Infer from seniority/job_type if no explicit year
+    if not periods:
+        is_intern = "intern" in t or "intern" in sen or "internship" in jt
+        is_new_grad = "new grad" in t or "new graduate" in t or "entry level" in t or "associate" in sen
+        is_junior = "junior" in sen or sen == "junior"
+
+        if is_intern:
+            periods.append("2026 Summer")
+        elif is_new_grad:
+            periods.append("2026 New Grad")
+            periods.append("Currently Hiring")
+        elif is_junior:
+            periods.append("Currently Hiring")
+            periods.append("2026 New Grad")
+        else:
+            periods.append("Currently Hiring")
+
+    return periods
+
+
+def classify_education_level(title: str, degrees: list[str] | None = None) -> list[str]:
+    """Classify education level from title and degree requirements."""
+    t = title.lower()
+    levels = []
+
+    if degrees:
+        for d in degrees:
+            dl = d.lower()
+            if "phd" in dl or "doctorate" in dl:
+                if "PhD" not in levels:
+                    levels.append("PhD")
+            elif "master" in dl or "mba" in dl:
+                if "Graduate" not in levels:
+                    levels.append("Graduate")
+            elif "bachelor" in dl or "associate" in dl or "bootcamp" in dl or "certificate" in dl:
+                if "Undergraduate" not in levels:
+                    levels.append("Undergraduate")
+
+    # Infer from title if no degree info
+    if "phd" in t or "ph.d" in t or "doctorate" in t:
+        if "PhD" not in levels:
+            levels.append("PhD")
+    if "mba" in t or "master" in t or "graduate student" in t:
+        if "Graduate" not in levels:
+            levels.append("Graduate")
+
+    # Default: if nothing found, assume undergraduate
+    if not levels:
+        levels.append("Undergraduate")
+
+    return levels
     return "Other"
 
 

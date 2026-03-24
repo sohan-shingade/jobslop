@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     skills TEXT,
     category TEXT,
     source_platform TEXT,
+    hiring_period TEXT,
+    education_level TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );

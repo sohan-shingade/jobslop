@@ -15,7 +15,7 @@ from datetime import datetime, timezone, timedelta
 
 import httpx
 
-from .base import BaseScraper, Job, categorize_role
+from .base import BaseScraper, Job, categorize_role, classify_hiring_period, classify_education_level
 
 logger = logging.getLogger(__name__)
 
@@ -128,8 +128,27 @@ class SimplifyScraper(BaseScraper):
             raw_category = item.get("category", "")
             category = CATEGORY_MAP.get(raw_category, "Other")
 
-            # Sponsorship
-            sponsorship = item.get("sponsorship", "")
+            # Hiring period from SimplifyJobs "terms" field
+            terms = item.get("terms", [])
+            hiring_period = []
+            for term in terms:
+                tl = term.lower()
+                if "summer 2027" in tl or "fall 2027" in tl or "spring 2027" in tl or "winter 2027" in tl:
+                    if self._source_key == "simplify_internships":
+                        hiring_period.append("2027 Summer")
+                    else:
+                        hiring_period.append("2027 New Grad")
+                elif "summer 2026" in tl or "fall 2026" in tl or "spring 2026" in tl or "winter 2026" in tl:
+                    if self._source_key == "simplify_internships":
+                        hiring_period.append("2026 Summer")
+                    else:
+                        hiring_period.append("2026 New Grad")
+            if not hiring_period:
+                hiring_period = classify_hiring_period(title, self._source["default_seniority"], self._source["default_job_type"])
+
+            # Education level from SimplifyJobs "degrees" field
+            degrees = item.get("degrees", [])
+            education_level = classify_education_level(title, degrees)
 
             return Job(
                 company=company,
@@ -143,6 +162,8 @@ class SimplifyScraper(BaseScraper):
                 seniority=self._source["default_seniority"],
                 job_type=self._source["default_job_type"],
                 source_platform="simplify",
+                hiring_period=hiring_period,
+                education_level=education_level,
             )
         except Exception as e:
             self.logger.debug("Failed to parse SimplifyJobs listing: %s", e)

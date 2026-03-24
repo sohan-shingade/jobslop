@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from .base import BaseScraper, Job, categorize_role
+from .base import BaseScraper, Job, categorize_role, classify_hiring_period, classify_education_level
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +189,8 @@ class GetroScraper(BaseScraper):
                 industry=industry,
                 skills=skills,
                 source_platform="getro",
+                hiring_period=classify_hiring_period(title, seniority),
+                education_level=classify_education_level(title),
             )
         except Exception as e:
             self.logger.debug("Failed to parse Getro job: %s", e)
@@ -282,6 +284,8 @@ class GetroScraper(BaseScraper):
                 category=categorize_role(title),
                 remote=remote,
                 source_platform="getro",
+                hiring_period=classify_hiring_period(title),
+                education_level=classify_education_level(title),
             )
         except Exception as e:
             self.logger.debug("Failed to parse Getro API job: %s", e)
