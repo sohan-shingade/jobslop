@@ -130,20 +130,23 @@ class SimplifyScraper(BaseScraper):
 
             # Hiring period from SimplifyJobs "terms" field
             terms = item.get("terms", [])
+            # Determine hiring periods from SimplifyJobs "terms" field
             hiring_period = []
-            for term in terms:
-                tl = term.lower()
-                if "summer 2027" in tl or "fall 2027" in tl or "spring 2027" in tl or "winter 2027" in tl:
-                    if self._source_key == "simplify_internships":
-                        hiring_period.append("2027 Summer")
-                    else:
-                        hiring_period.append("2027 New Grad")
-                elif "summer 2026" in tl or "fall 2026" in tl or "spring 2026" in tl or "winter 2026" in tl:
-                    if self._source_key == "simplify_internships":
-                        hiring_period.append("2026 Summer")
-                    else:
-                        hiring_period.append("2026 New Grad")
+            has_2026 = any("2026" in t for t in terms)
+            has_2027 = any("2027" in t for t in terms)
+
+            if has_2027:
+                if self._source_key == "simplify_internships":
+                    hiring_period.append("2027 Summer")
+                else:
+                    hiring_period.append("2027 New Grad")
+            if has_2026:
+                if self._source_key == "simplify_internships":
+                    hiring_period.append("2026 Summer")
+                else:
+                    hiring_period.append("2026 New Grad")
             if not hiring_period:
+                # No year in terms — use title-based classification
                 hiring_period = classify_hiring_period(title, self._source["default_seniority"], self._source["default_job_type"])
 
             # Education level from SimplifyJobs "degrees" field
