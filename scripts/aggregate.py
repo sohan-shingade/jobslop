@@ -31,6 +31,8 @@ from scrapers.getro import GetroScraper
 from scrapers.simplify import SimplifyScraper
 from scrapers.workday import WorkdayScraper
 from scrapers.greenhouse import GreenhouseScraper
+from scrapers.lever import LeverScraper
+from scrapers.ashby import AshbyScraper
 from scripts.deduplicate import deduplicate
 
 logging.basicConfig(
@@ -52,6 +54,8 @@ PLATFORM_SCRAPERS = {
     "simplify": SimplifyScraper,
     "workday": WorkdayScraper,
     "greenhouse": GreenhouseScraper,
+    "lever": LeverScraper,
+    "ashby": AshbyScraper,
 }
 
 
