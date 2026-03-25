@@ -66,6 +66,8 @@ function buildWhereClause(
     clauses.push("j.source_platform IN ('consider', 'getro')");
   } else if (filters.source === "simplify") {
     clauses.push("j.source_platform = 'simplify'");
+  } else if (filters.source === "banking") {
+    clauses.push("j.source_platform IN ('workday', 'greenhouse')");
   }
 
   if (filters.hiring_period?.length) {

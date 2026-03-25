@@ -187,6 +187,46 @@ boards:
     url: "https://github.com/SimplifyJobs/New-Grad-Positions"
     source_key: "simplify_newgrad"
 
+  # === BANKS — WORKDAY ===
+  - name: "Blackstone"
+    platform: workday
+    url: "https://blackstone.wd1.myworkdayjobs.com/Blackstone_Careers"
+    api_url: "https://blackstone.wd1.myworkdayjobs.com/wday/cxs/blackstone/Blackstone_Careers/jobs"
+    base_url: "https://blackstone.wd1.myworkdayjobs.com/Blackstone_Careers"
+    search_terms: ["intern", "analyst", "associate", "graduate", "summer", "2027"]
+
+  - name: "Citigroup"
+    platform: workday
+    url: "https://citi.wd5.myworkdayjobs.com/2"
+    api_url: "https://citi.wd5.myworkdayjobs.com/wday/cxs/citi/2/jobs"
+    base_url: "https://citi.wd5.myworkdayjobs.com/2"
+    search_terms: ["intern", "analyst program", "new grad", "summer 2027", "summer 2026"]
+
+  - name: "Deutsche Bank"
+    platform: workday
+    url: "https://db.wd3.myworkdayjobs.com/DBWebsite"
+    api_url: "https://db.wd3.myworkdayjobs.com/wday/cxs/db/DBWebsite/jobs"
+    base_url: "https://db.wd3.myworkdayjobs.com/DBWebsite"
+    search_terms: ["intern", "analyst", "graduate programme", "summer"]
+
+  - name: "BMO"
+    platform: workday
+    url: "https://bmo.wd3.myworkdayjobs.com/External"
+    api_url: "https://bmo.wd3.myworkdayjobs.com/wday/cxs/bmo/External/jobs"
+    base_url: "https://bmo.wd3.myworkdayjobs.com/External"
+    search_terms: ["intern", "analyst", "associate", "new grad"]
+
+  # === BANKS — GREENHOUSE ===
+  - name: "Jane Street"
+    platform: greenhouse
+    url: "https://www.janestreet.com/join-jane-street/open-positions/"
+    board_token: "janestreet"
+
+  - name: "Point72"
+    platform: greenhouse
+    url: "https://point72.com/careers/"
+    board_token: "point72"
+
   # === CUSTOM SCRAPERS (not yet implemented) ===
   - name: "Y Combinator"
     platform: yc

@@ -96,6 +96,7 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
   if (daysVal) chips.push({ key: "days", label: "Posted", value: `last ${daysVal}d` });
   if (currentSource === "vc") chips.push({ key: "source", label: "Source", value: "VC-backed" });
   if (currentSource === "simplify") chips.push({ key: "source", label: "Source", value: "SimplifyJobs" });
+  if (currentSource === "banking") chips.push({ key: "source", label: "Source", value: "Banks & Finance" });
 
   const removeChip = (key: string, value: string) => {
     if (key === "remote") {
@@ -241,6 +242,7 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
           <option value="">All sources</option>
           <option value="vc">VC-backed only</option>
           <option value="simplify">SimplifyJobs</option>
+          <option value="banking">Banks & Finance</option>
         </select>
         <FilterDropdown
           label="Department"

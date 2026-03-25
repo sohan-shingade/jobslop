@@ -29,6 +29,8 @@ from scrapers.base import Job
 from scrapers.consider import ConsiderScraper
 from scrapers.getro import GetroScraper
 from scrapers.simplify import SimplifyScraper
+from scrapers.workday import WorkdayScraper
+from scrapers.greenhouse import GreenhouseScraper
 from scripts.deduplicate import deduplicate
 
 logging.basicConfig(
@@ -48,6 +50,8 @@ PLATFORM_SCRAPERS = {
     "consider": ConsiderScraper,
     "getro": GetroScraper,
     "simplify": SimplifyScraper,
+    "workday": WorkdayScraper,
+    "greenhouse": GreenhouseScraper,
 }
 
 
