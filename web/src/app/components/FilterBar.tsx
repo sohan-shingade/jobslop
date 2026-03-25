@@ -97,6 +97,7 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
   if (currentSource === "vc") chips.push({ key: "source", label: "Source", value: "VC-backed" });
   if (currentSource === "simplify") chips.push({ key: "source", label: "Source", value: "SimplifyJobs" });
   if (currentSource === "banking") chips.push({ key: "source", label: "Source", value: "Banks & Finance" });
+  if (currentSource === "crypto") chips.push({ key: "source", label: "Source", value: "Crypto & Web3" });
 
   const removeChip = (key: string, value: string) => {
     if (key === "remote") {
@@ -243,6 +244,7 @@ export default function FilterBar({ filterOptions, total }: FilterBarProps) {
           <option value="vc">VC-backed only</option>
           <option value="simplify">SimplifyJobs</option>
           <option value="banking">Banks & Finance</option>
+          <option value="crypto">Crypto & Web3</option>
         </select>
         <FilterDropdown
           label="Department"

@@ -67,7 +67,9 @@ function buildWhereClause(
   } else if (filters.source === "simplify") {
     clauses.push("j.source_platform = 'simplify'");
   } else if (filters.source === "banking") {
-    clauses.push("(j.source_platform IN ('workday', 'greenhouse') OR j.industry LIKE '%Financial%' OR j.industry LIKE '%Banking%' OR j.industry LIKE '%Investment%' OR j.industry LIKE '%Capital Markets%')");
+    clauses.push("(j.industry LIKE '%Financial%' OR j.industry LIKE '%Banking%' OR j.industry LIKE '%Investment%' OR j.industry LIKE '%Capital Markets%')");
+  } else if (filters.source === "crypto") {
+    clauses.push("j.industry = 'Crypto'");
   }
 
   if (filters.hiring_period?.length) {

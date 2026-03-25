@@ -39,7 +39,7 @@ export interface Filters {
   category?: string[];
   us_only?: boolean;
   days?: number;
-  source?: string; // "vc" or "simplify"
+  source?: string; // "vc", "simplify", "banking", or "crypto"
   hiring_period?: string[];
   education_level?: string[];
 }

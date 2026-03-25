@@ -232,6 +232,291 @@ boards:
     url: "https://careers.aqr.com/"
     board_token: "aqr"
 
+  # === CRYPTO — GREENHOUSE ===
+  - name: "Coinbase"
+    platform: greenhouse
+    url: "https://www.coinbase.com/careers"
+    board_token: "coinbase"
+    industry: "Crypto"
+
+  - name: "Ripple"
+    platform: greenhouse
+    url: "https://ripple.com/careers"
+    board_token: "ripple"
+    industry: "Crypto"
+
+  - name: "Robinhood"
+    platform: greenhouse
+    url: "https://robinhood.com/careers"
+    board_token: "robinhood"
+    industry: "Crypto"
+
+  - name: "BitGo"
+    platform: greenhouse
+    url: "https://www.bitgo.com/careers"
+    board_token: "bitgo"
+    industry: "Crypto"
+
+  - name: "Galaxy Digital"
+    platform: greenhouse
+    url: "https://www.galaxy.com/careers"
+    board_token: "galaxydigitalservices"
+    industry: "Crypto"
+
+  - name: "Fireblocks"
+    platform: greenhouse
+    url: "https://www.fireblocks.com/careers"
+    board_token: "fireblocks"
+    industry: "Crypto"
+
+  - name: "Blockchain.com"
+    platform: greenhouse
+    url: "https://www.blockchain.com/careers"
+    board_token: "blockchain"
+    industry: "Crypto"
+
+  - name: "Alchemy"
+    platform: greenhouse
+    url: "https://www.alchemy.com/careers"
+    board_token: "alchemy"
+    industry: "Crypto"
+
+  - name: "Consensys"
+    platform: greenhouse
+    url: "https://consensys.io/careers"
+    board_token: "consensys"
+    industry: "Crypto"
+
+  - name: "Gemini"
+    platform: greenhouse
+    url: "https://www.gemini.com/careers"
+    board_token: "gemini"
+    industry: "Crypto"
+
+  - name: "Ava Labs"
+    platform: greenhouse
+    url: "https://www.avalabs.org/careers"
+    board_token: "avalabs"
+    industry: "Crypto"
+
+  - name: "Hedera"
+    platform: greenhouse
+    url: "https://hedera.com/careers"
+    board_token: "hashgraph"
+    industry: "Crypto"
+
+  - name: "LayerZero Labs"
+    platform: greenhouse
+    url: "https://layerzero.network/careers"
+    board_token: "layerzerolabs"
+    industry: "Crypto"
+
+  - name: "Jump Trading"
+    platform: greenhouse
+    url: "https://www.jumptrading.com/careers"
+    board_token: "jumptrading"
+    industry: "Crypto"
+
+  - name: "Jump Crypto"
+    platform: greenhouse
+    url: "https://jumpcrypto.com/careers"
+    board_token: "jumpcrypto"
+    industry: "Crypto"
+
+  - name: "FalconX"
+    platform: greenhouse
+    url: "https://www.falconx.io/careers"
+    board_token: "falconx"
+    industry: "Crypto"
+
+  - name: "Flow Traders"
+    platform: greenhouse
+    url: "https://www.flowtraders.com/careers"
+    board_token: "flowtraders"
+    industry: "Crypto"
+
+  - name: "GSR Markets"
+    platform: greenhouse
+    url: "https://www.gsr.io/careers"
+    board_token: "gsrmarkets"
+    industry: "Crypto"
+
+  - name: "Aptos Labs"
+    platform: greenhouse
+    url: "https://aptoslabs.com/careers"
+    board_token: "aptoslabs"
+    industry: "Crypto"
+
+  - name: "NEAR Foundation"
+    platform: greenhouse
+    url: "https://near.org/careers"
+    board_token: "nearfoundation"
+    industry: "Crypto"
+
+  - name: "Paradigm"
+    platform: greenhouse
+    url: "https://www.paradigm.xyz/opportunities"
+    board_token: "paradigm"
+    industry: "Crypto"
+
+  - name: "Figment"
+    platform: greenhouse
+    url: "https://figment.io/careers"
+    board_token: "figment"
+    industry: "Crypto"
+
+  # === CRYPTO — LEVER ===
+  - name: "Anchorage Digital"
+    platform: lever
+    url: "https://www.anchorage.com/careers"
+    board_token: "anchorage"
+    industry: "Crypto"
+
+  - name: "Wintermute"
+    platform: lever
+    url: "https://www.wintermute.com/careers"
+    board_token: "wintermute-trading"
+    industry: "Crypto"
+
+  - name: "Offchain Labs"
+    platform: lever
+    url: "https://offchainlabs.com/careers"
+    board_token: "offchainlabs"
+    industry: "Crypto"
+
+  - name: "Immutable"
+    platform: lever
+    url: "https://www.immutable.com/careers"
+    board_token: "immutable"
+    industry: "Crypto"
+
+  - name: "Starknet"
+    platform: lever
+    url: "https://starknet.io/careers"
+    board_token: "starknet"
+    industry: "Crypto"
+
+  - name: "Amber Group"
+    platform: lever
+    url: "https://www.ambergroup.io/careers"
+    board_token: "ambergroup"
+    industry: "Crypto"
+
+  - name: "Celestia"
+    platform: lever
+    url: "https://celestia.org/careers"
+    board_token: "celestia"
+    industry: "Crypto"
+
+  - name: "Crypto.com"
+    platform: lever
+    url: "https://crypto.com/careers"
+    board_token: "crypto"
+    industry: "Crypto"
+
+  # === CRYPTO — ASHBY ===
+  - name: "Tools for Humanity"
+    platform: ashby
+    url: "https://www.toolsforhumanity.com/careers"
+    board_token: "Tools%20for%20Humanity"
+    industry: "Crypto"
+
+  - name: "Chainalysis"
+    platform: ashby
+    url: "https://www.chainalysis.com/careers"
+    board_token: "chainalysis-careers"
+    industry: "Crypto"
+
+  - name: "Paxos"
+    platform: ashby
+    url: "https://paxos.com/careers"
+    board_token: "paxos"
+    industry: "Crypto"
+
+  - name: "Stellar"
+    platform: ashby
+    url: "https://www.stellar.org/careers"
+    board_token: "stellar"
+    industry: "Crypto"
+
+  - name: "Phantom"
+    platform: ashby
+    url: "https://phantom.app/careers"
+    board_token: "phantom"
+    industry: "Crypto"
+
+  - name: "Dapper Labs"
+    platform: ashby
+    url: "https://www.dapperlabs.com/careers"
+    board_token: "dapper"
+    industry: "Crypto"
+
+  - name: "Ledger"
+    platform: ashby
+    url: "https://www.ledger.com/careers"
+    board_token: "ledger"
+    industry: "Crypto"
+
+  - name: "Turnkey"
+    platform: ashby
+    url: "https://www.turnkey.com/careers"
+    board_token: "turnkey"
+    industry: "Crypto"
+
+  - name: "Mysten Labs"
+    platform: ashby
+    url: "https://mystenlabs.com/careers"
+    board_token: "mystenlabs"
+    industry: "Crypto"
+
+  - name: "Wormhole Labs"
+    platform: ashby
+    url: "https://wormhole.com/careers"
+    board_token: "wormholelabs"
+    industry: "Crypto"
+
+  - name: "Uniswap"
+    platform: ashby
+    url: "https://www.uniswap.org/careers"
+    board_token: "uniswap"
+    industry: "Crypto"
+
+  - name: "Compound"
+    platform: ashby
+    url: "https://compound.finance/careers"
+    board_token: "compound"
+    industry: "Crypto"
+
+  - name: "OpenSea"
+    platform: ashby
+    url: "https://opensea.io/careers"
+    board_token: "opensea"
+    industry: "Crypto"
+
+  - name: "Eigen Labs"
+    platform: ashby
+    url: "https://www.eigenlayer.xyz/careers"
+    board_token: "eigen-labs"
+    industry: "Crypto"
+
+  - name: "Blockdaemon"
+    platform: ashby
+    url: "https://blockdaemon.com/careers"
+    board_token: "blockdaemon"
+    industry: "Crypto"
+
+  - name: "Matter Labs"
+    platform: ashby
+    url: "https://matter-labs.io/careers"
+    board_token: "matter-labs"
+    industry: "Crypto"
+
+  - name: "xLabs"
+    platform: ashby
+    url: "https://www.xlabs.xyz/careers"
+    board_token: "xlabs"
+    industry: "Crypto"
+
   # === CUSTOM SCRAPERS (not yet implemented) ===
   - name: "Y Combinator"
     platform: yc
