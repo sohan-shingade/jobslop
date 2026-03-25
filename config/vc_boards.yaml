@@ -227,6 +227,11 @@ boards:
     url: "https://point72.com/careers/"
     board_token: "point72"
 
+  - name: "AQR Capital"
+    platform: greenhouse
+    url: "https://careers.aqr.com/"
+    board_token: "aqr"
+
   # === CUSTOM SCRAPERS (not yet implemented) ===
   - name: "Y Combinator"
     platform: yc
