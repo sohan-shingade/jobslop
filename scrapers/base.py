@@ -94,23 +94,37 @@ def classify_hiring_period(title: str, seniority: str | None = None, job_type: s
     jt = (job_type or "").lower()
     periods = []
 
-    # Explicit year/season in title
-    if "2027" in t:
-        if "summer" in t or "intern" in t:
+    # 2027: STRICT — only if title confirms the role starts in 2027
+    # Either: season/intern keyword adjacent to 2027, OR both "2027" and an intern/season keyword appear
+    # But NOT just "class of 2027" or "graduating 2027"
+    import re
+    has_2027_adjacent = bool(re.search(
+        r'(summer|fall|spring|winter|intern\w*|co-?op)\s*[-–/,]?\s*2027|2027\s*[-–/,]?\s*(summer|fall|spring|winter|intern\w*|new grad|co-?op)',
+        t
+    ))
+    # Also match if 2027 appears AND title contains intern/co-op/season, but NOT "class of 2027" or "graduating 2027"
+    has_2027_with_intern = (
+        "2027" in t
+        and any(kw in t for kw in ["intern", "co-op", "co op", "summer", "fall", "spring", "winter"])
+        and not re.search(r'(class of|graduating|graduat\w+ in)\s*2027', t)
+    )
+    has_2027_start = has_2027_adjacent or has_2027_with_intern
+    if has_2027_start:
+        if "intern" in t or "co-op" in t or "co op" in t:
             periods.append("2027 Summer")
         elif "new grad" in t or "new graduate" in t:
             periods.append("2027 New Grad")
-        elif "spring" in t or "fall" in t or "winter" in t:
-            periods.append("2027 Summer")  # close enough
         else:
-            periods.append("2027 New Grad")
+            periods.append("2027 Summer")
+
+    # 2026: same pattern but slightly more lenient (current cycle)
     if "2026" in t:
         if "summer" in t or "intern" in t:
             periods.append("2026 Summer")
         elif "new grad" in t or "new graduate" in t or "university grad" in t:
             periods.append("2026 New Grad")
         elif "fall" in t or "spring" in t or "winter" in t:
-            periods.append("2026 Summer")  # seasonal = intern-like
+            periods.append("2026 Summer")
         else:
             periods.append("2026 New Grad")
 
