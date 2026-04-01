@@ -1,6 +1,7 @@
 import { db } from "./db";
 import type { Job, Filters, SortField, SortDir, FilterOptions } from "./types";
-import type { Row } from "@libsql/client";
+
+type Row = Record<string, unknown>;
 
 const PAGE_SIZE = 50;
 

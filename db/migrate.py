@@ -1,10 +1,10 @@
 """
-Migration script for Turso database.
+Migration script for Cloudflare D1 database.
 
 Creates tables from schema.sql and optionally loads existing job data
 from data/jobs.json into the database.
 
-Uses the Turso HTTP pipeline API directly for maximum reliability.
+Uses the Cloudflare D1 REST API.
 """
 
 import hashlib
@@ -19,71 +19,62 @@ from dotenv import load_dotenv
 ROOT_DIR = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 JOBS_JSON_PATH = ROOT_DIR / "data" / "jobs.json"
-BATCH_SIZE = 200  # rows per HTTP request
+BATCH_SIZE = 100  # rows per HTTP request
 
 
-def get_turso_config():
+def get_d1_config():
     load_dotenv(ROOT_DIR / ".env")
-    url = os.getenv("TURSO_DATABASE_URL", "")
-    token = os.getenv("TURSO_AUTH_TOKEN", "")
-    if not url or not token:
-        print("Error: TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be set in .env")
+    acct_id = os.getenv("CLOUDFLARE_ACCT_ID", "")
+    db_id = os.getenv("CLOUDFLARE_DB_ID", "")
+    api_key = os.getenv("CLOUDFLARE_API_KEY", "")
+    if not acct_id or not db_id or not api_key:
+        print("Error: CLOUDFLARE_ACCT_ID, CLOUDFLARE_DB_ID, and CLOUDFLARE_API_KEY must be set in .env")
         sys.exit(1)
-    # Convert libsql:// to https:// for HTTP API
-    http_url = url.replace("libsql://", "https://")
-    return http_url, token
+    url = f"https://api.cloudflare.com/client/v4/accounts/{acct_id}/d1/database/{db_id}/query"
+    return url, api_key
 
 
-def execute_sql(http_url, token, statements):
-    """Execute a list of SQL statements via Turso HTTP pipeline API."""
-    reqs = []
-    for sql, args in statements:
-        stmt = {"sql": sql}
-        if args:
-            stmt["args"] = [_to_value(a) for a in args]
-        reqs.append({"type": "execute", "stmt": stmt})
-    if not reqs:
+def execute_sql(api_url, token, statements):
+    """Execute a list of SQL statements via D1 REST API (one request per statement)."""
+    if not statements:
         return []
-    reqs.append({"type": "close"})
-    resp = requests.post(
-        f"{http_url}/v2/pipeline",
-        json={"requests": reqs},
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    results = data.get("results", [])
-    for r in results:
-        if r.get("type") == "error":
-            err = r.get("error", {})
-            print(f"  SQL error: {err.get('message', err)}")
+    results = []
+    for sql, args in statements:
+        body = {"sql": sql}
+        if args:
+            body["params"] = args
+        resp = requests.post(
+            api_url,
+            json=body,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data.get("success"):
+            for err in data.get("errors", []):
+                print(f"  D1 error: {err.get('message', err)}")
+        result_list = data.get("result", [{}])
+        results.append(result_list[0] if result_list else {})
     return results
-
-
-def _to_value(v):
-    if v is None:
-        return {"type": "null", "value": None}
-    if isinstance(v, int):
-        return {"type": "integer", "value": str(v)}
-    if isinstance(v, float):
-        return {"type": "float", "value": v}
-    return {"type": "text", "value": str(v)}
 
 
 def generate_id(url):
     return hashlib.sha256(url.encode()).hexdigest()[:16]
 
 
-def run_schema(http_url, token):
+def run_schema(api_url, token):
     print("Running schema.sql ...")
     schema_sql = SCHEMA_PATH.read_text()
     stmts = [(s.strip(), None) for s in schema_sql.split(";") if s.strip()]
-    execute_sql(http_url, token, stmts)
+    execute_sql(api_url, token, stmts)
     print("Schema applied successfully.")
 
 
-def load_jobs(http_url, token):
+def load_jobs(api_url, token):
     if not JOBS_JSON_PATH.exists():
         print(f"No jobs file at {JOBS_JSON_PATH}, skipping data load.")
         return
@@ -125,36 +116,36 @@ def load_jobs(http_url, token):
 
         # Flush batch
         if len(batch) >= BATCH_SIZE:
-            execute_sql(http_url, token, batch)
+            execute_sql(api_url, token, batch)
             batch = []
             print(f"  {inserted}/{len(jobs)} jobs ...")
 
     # Flush remaining jobs
     if batch:
-        execute_sql(http_url, token, batch)
+        execute_sql(api_url, token, batch)
 
     # Insert VC backers in batches
     print(f"Inserting {len(vc_batch)} VC backer associations ...")
     for i in range(0, len(vc_batch), BATCH_SIZE):
-        execute_sql(http_url, token, vc_batch[i : i + BATCH_SIZE])
+        execute_sql(api_url, token, vc_batch[i : i + BATCH_SIZE])
 
     print(f"Import complete: {inserted} jobs processed.")
 
 
-def verify(http_url, token):
+def verify(api_url, token):
     print("\nVerification:")
     for table in ("jobs", "job_vc_backers", "vc_boards"):
-        results = execute_sql(http_url, token, [(f"SELECT COUNT(*) FROM {table}", None)])
-        count = results[0]["response"]["result"]["rows"][0][0]["value"]
+        results = execute_sql(api_url, token, [(f"SELECT COUNT(*) as cnt FROM {table}", None)])
+        count = results[0]["results"][0]["cnt"]
         print(f"  {table}: {count} rows")
 
 
 def main():
-    http_url, token = get_turso_config()
-    print(f"Connecting to {http_url[:40]}...")
-    run_schema(http_url, token)
-    load_jobs(http_url, token)
-    verify(http_url, token)
+    api_url, token = get_d1_config()
+    print(f"Connecting to D1...")
+    run_schema(api_url, token)
+    load_jobs(api_url, token)
+    verify(api_url, token)
     print("\nMigration complete!")
 
 

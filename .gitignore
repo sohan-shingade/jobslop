@@ -12,3 +12,4 @@ build/
 web/.env.local
 data/
 blueprint.md
+.vercel

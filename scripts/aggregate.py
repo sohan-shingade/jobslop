@@ -1,4 +1,4 @@
-"""Main orchestrator — runs all scrapers, deduplicates, writes to Turso DB.
+"""Main orchestrator — runs all scrapers, deduplicates, writes to Cloudflare D1.
 
 Usage:
     python scripts/aggregate.py              # incremental (only fetch new jobs)
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 CONFIG_FILE = ROOT / "config" / "vc_boards.yaml"
 MAX_CONCURRENT = 5
 MAX_AGE_DAYS = 30
-BATCH_SIZE = 200
+BATCH_SIZE = 100
 
 PLATFORM_SCRAPERS = {
     "consider": ConsiderScraper,
@@ -59,53 +59,44 @@ PLATFORM_SCRAPERS = {
 }
 
 
-# ── Turso DB helpers ────────────────────────────────────────────────────
+# ── Cloudflare D1 helpers ──────────────────────────────────────────────
 
-def get_turso_config():
+def get_d1_config():
     load_dotenv(ROOT / ".env")
-    url = os.getenv("TURSO_DATABASE_URL", "")
-    token = os.getenv("TURSO_AUTH_TOKEN", "")
-    if not url or not token:
-        logger.error("TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be set")
+    acct_id = os.getenv("CLOUDFLARE_ACCT_ID", "")
+    db_id = os.getenv("CLOUDFLARE_DB_ID", "")
+    api_key = os.getenv("CLOUDFLARE_API_KEY", "")
+    if not acct_id or not db_id or not api_key:
+        logger.error("CLOUDFLARE_ACCT_ID, CLOUDFLARE_DB_ID, and CLOUDFLARE_API_KEY must be set")
         sys.exit(1)
-    return url.replace("libsql://", "https://"), token
+    url = f"https://api.cloudflare.com/client/v4/accounts/{acct_id}/d1/database/{db_id}/query"
+    return url, api_key
 
 
-def _to_value(v):
-    if v is None:
-        return {"type": "null", "value": None}
-    if isinstance(v, bool):
-        return {"type": "integer", "value": str(int(v))}
-    if isinstance(v, int):
-        return {"type": "integer", "value": str(v)}
-    if isinstance(v, float):
-        return {"type": "float", "value": v}
-    return {"type": "text", "value": str(v)}
-
-
-def execute_sql(http_url, token, statements):
-    reqs = []
-    for sql, args in statements:
-        stmt = {"sql": sql}
-        if args:
-            stmt["args"] = [_to_value(a) for a in args]
-        reqs.append({"type": "execute", "stmt": stmt})
-    if not reqs:
+def execute_sql(api_url, token, statements):
+    if not statements:
         return []
-    reqs.append({"type": "close"})
-    resp = requests.post(
-        f"{http_url}/v2/pipeline",
-        json={"requests": reqs},
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    results = data.get("results", [])
-    for r in results:
-        if r.get("type") == "error":
-            err = r.get("error", {})
-            logger.error("SQL error: %s", err.get("message", err))
+    results = []
+    for sql, args in statements:
+        body = {"sql": sql}
+        if args:
+            body["params"] = args
+        resp = requests.post(
+            api_url,
+            json=body,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data.get("success"):
+            for err in data.get("errors", []):
+                logger.error("D1 error: %s", err.get("message", err))
+        result_list = data.get("result", [{}])
+        results.append(result_list[0] if result_list else {})
     return results
 
 
@@ -113,14 +104,14 @@ def job_id(url: str) -> str:
     return hashlib.sha256(url.encode()).hexdigest()[:16]
 
 
-def get_known_urls(http_url, token) -> set[str]:
-    results = execute_sql(http_url, token, [("SELECT url FROM jobs", None)])
-    rows = results[0]["response"]["result"]["rows"]
-    return {row[0]["value"] for row in rows}
+def get_known_urls(api_url, token) -> set[str]:
+    results = execute_sql(api_url, token, [("SELECT url FROM jobs", None)])
+    rows = results[0]["results"]
+    return {row["url"] for row in rows}
 
 
 def upsert_jobs(http_url, token, jobs: list[Job]):
-    """Batch upsert jobs into Turso."""
+    """Batch upsert jobs into D1."""
     stmts = []
     vc_stmts = []
 
@@ -183,19 +174,19 @@ def upsert_jobs(http_url, token, jobs: list[Job]):
         execute_sql(http_url, token, vc_stmts[i:i + BATCH_SIZE])
 
 
-def prune_old_jobs_db(http_url, token, max_age_days: int = MAX_AGE_DAYS):
+def prune_old_jobs_db(api_url, token, max_age_days: int = MAX_AGE_DAYS):
     cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).isoformat()
-    results = execute_sql(http_url, token, [
-        (f"DELETE FROM jobs WHERE posted_date < ?", [cutoff]),
+    results = execute_sql(api_url, token, [
+        ("DELETE FROM jobs WHERE posted_date < ?", [cutoff]),
     ])
-    affected = results[0]["response"]["result"]["affected_row_count"]
+    affected = results[0]["meta"]["changes"]
     if affected:
         logger.info("Pruned %d jobs older than %d days from DB", affected, max_age_days)
 
 
-def get_db_job_count(http_url, token) -> int:
-    results = execute_sql(http_url, token, [("SELECT COUNT(*) FROM jobs", None)])
-    return int(results[0]["response"]["result"]["rows"][0][0]["value"])
+def get_db_job_count(api_url, token) -> int:
+    results = execute_sql(api_url, token, [("SELECT COUNT(*) as cnt FROM jobs", None)])
+    return int(results[0]["results"][0]["cnt"])
 
 
 # ── Scraping ────────────────────────────────────────────────────────────
@@ -237,12 +228,12 @@ async def run(
     boards = load_config(platform_filter)
     logger.info("Loaded %d board configs", len(boards))
 
-    http_url, token = get_turso_config()
+    api_url, token = get_d1_config()
 
     # Get known URLs for incremental mode
     known_urls: set[str] = set()
     if not full:
-        known_urls = get_known_urls(http_url, token)
+        known_urls = get_known_urls(api_url, token)
         if known_urls:
             logger.info("Incremental mode: %d known URLs in DB", len(known_urls))
         else:
@@ -250,7 +241,7 @@ async def run(
 
     if full:
         logger.info("Full mode: clearing existing jobs")
-        execute_sql(http_url, token, [
+        execute_sql(api_url, token, [
             ("DELETE FROM job_vc_backers", None),
             ("DELETE FROM jobs", None),
         ])
@@ -268,14 +259,14 @@ async def run(
     # Deduplicate (merges vc_backers across boards)
     unique_jobs = deduplicate(new_jobs)
 
-    # Upsert into Turso
-    logger.info("Upserting %d jobs into Turso...", len(unique_jobs))
-    upsert_jobs(http_url, token, unique_jobs)
+    # Upsert into D1
+    logger.info("Upserting %d jobs into D1...", len(unique_jobs))
+    upsert_jobs(api_url, token, unique_jobs)
 
     # Prune old jobs
-    prune_old_jobs_db(http_url, token)
+    prune_old_jobs_db(api_url, token)
 
-    total = get_db_job_count(http_url, token)
+    total = get_db_job_count(api_url, token)
     logger.info("Done. %d total jobs in DB.", total)
 
 
