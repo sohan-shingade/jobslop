@@ -9,8 +9,9 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     env:
-      TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
-      TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+      CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+      CLOUDFLARE_ACCT_ID: ${{ secrets.CLOUDFLARE_ACCT_ID }}
+      CLOUDFLARE_DB_ID: ${{ secrets.CLOUDFLARE_DB_ID }}
     steps:
       - uses: actions/checkout@v4
 
