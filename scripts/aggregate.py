@@ -92,12 +92,13 @@ def execute_sql(api_url, token, statements, max_retries=3):
                 },
                 timeout=60,
             )
-            if resp.status_code >= 500 and attempt < max_retries:
-                wait = 2 ** attempt
-                logger.warning("D1 returned %d, retrying in %ds (attempt %d/%d)",
-                               resp.status_code, wait, attempt + 1, max_retries)
-                time.sleep(wait)
-                continue
+            if resp.status_code in (401, 429) or resp.status_code >= 500:
+                if attempt < max_retries:
+                    wait = 2 ** attempt
+                    logger.warning("D1 returned %d, retrying in %ds (attempt %d/%d)",
+                                   resp.status_code, wait, attempt + 1, max_retries)
+                    time.sleep(wait)
+                    continue
             resp.raise_for_status()
             break
         data = resp.json()
