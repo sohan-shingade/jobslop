@@ -18,39 +18,155 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// Scoring helpers
+// ── Skill synonyms: map variations to a canonical form ──────────────
+const SKILL_ALIASES: Record<string, string> = {
+  js: "javascript", typescript: "javascript", ts: "javascript", node: "javascript", "node.js": "javascript", nodejs: "javascript",
+  py: "python", python3: "python", "python 3": "python",
+  react: "react", "react.js": "react", reactjs: "react", nextjs: "react", "next.js": "react",
+  vue: "vue", "vue.js": "vue", vuejs: "vue", nuxt: "vue", "nuxt.js": "vue",
+  angular: "angular", angularjs: "angular",
+  postgres: "postgresql", psql: "postgresql", pg: "postgresql",
+  mongo: "mongodb", mongoose: "mongodb",
+  mysql: "sql", sqlite: "sql", "ms sql": "sql", mssql: "sql",
+  aws: "aws", "amazon web services": "aws",
+  gcp: "gcp", "google cloud": "gcp", "google cloud platform": "gcp",
+  azure: "azure", "microsoft azure": "azure",
+  k8s: "kubernetes", kube: "kubernetes",
+  tf: "terraform",
+  ml: "machine learning", "deep learning": "machine learning", dl: "machine learning",
+  ai: "machine learning", "artificial intelligence": "machine learning",
+  tensorflow: "tensorflow", tf2: "tensorflow",
+  pytorch: "pytorch", torch: "pytorch",
+  pandas: "pandas", numpy: "pandas",
+  scikit: "scikit-learn", sklearn: "scikit-learn", "scikit learn": "scikit-learn",
+  docker: "docker", containerization: "docker",
+  ci: "ci/cd", cd: "ci/cd", "ci/cd": "ci/cd", jenkins: "ci/cd", "github actions": "ci/cd",
+  graphql: "graphql", gql: "graphql",
+  redis: "redis", memcached: "redis",
+  kafka: "kafka", rabbitmq: "kafka",
+  spark: "spark", pyspark: "spark",
+  airflow: "airflow", dag: "airflow",
+  java: "java", jvm: "java", kotlin: "java", scala: "java",
+  go: "golang", golang: "golang",
+  rust: "rust",
+  cpp: "c++", "c++": "c++",
+  c: "c",
+  swift: "swift",
+  ruby: "ruby", rails: "ruby", ror: "ruby",
+  php: "php", laravel: "php",
+  r: "r", rstudio: "r",
+  tableau: "tableau", powerbi: "tableau", "power bi": "tableau", looker: "tableau",
+  figma: "figma", sketch: "figma",
+  solidity: "solidity", "smart contracts": "solidity",
+  web3: "web3", blockchain: "web3", defi: "web3",
+  css: "css", sass: "css", scss: "css", tailwind: "css", "tailwindcss": "css",
+  html: "html",
+  git: "git", github: "git", gitlab: "git",
+  linux: "linux", unix: "linux", bash: "linux", shell: "linux",
+  excel: "excel", "google sheets": "excel", spreadsheets: "excel",
+  sql: "sql",
+};
+
+function canonicalSkill(s: string): string {
+  const lower = s.toLowerCase().trim();
+  return SKILL_ALIASES[lower] || lower;
+}
+
+function canonicalSkillSet(skills: string[]): Set<string> {
+  const set = new Set<string>();
+  for (const s of skills) {
+    set.add(canonicalSkill(s));
+    // Also add the raw lowercase so exact matches still work
+    set.add(s.toLowerCase().trim());
+  }
+  return set;
+}
+
+// ── Title synonyms for semantic matching ────────────────────────────
+const TITLE_SYNONYMS: Record<string, string[]> = {
+  "software engineer": ["software developer", "swe", "backend engineer", "frontend engineer", "full stack engineer", "fullstack engineer", "full-stack engineer", "application developer", "web developer", "platform engineer"],
+  "data scientist": ["data science", "ml scientist", "research scientist", "applied scientist"],
+  "data engineer": ["data platform engineer", "analytics engineer", "etl developer", "data infrastructure"],
+  "machine learning engineer": ["ml engineer", "mlops engineer", "ai engineer", "deep learning engineer"],
+  "product manager": ["product owner", "pm", "program manager", "technical program manager", "tpm"],
+  "designer": ["ux designer", "ui designer", "product designer", "ux/ui designer", "ui/ux designer", "visual designer", "interaction designer"],
+  "devops engineer": ["site reliability engineer", "sre", "infrastructure engineer", "platform engineer", "cloud engineer"],
+  "data analyst": ["business analyst", "analytics", "bi analyst", "business intelligence"],
+  "security engineer": ["cybersecurity engineer", "infosec engineer", "application security", "security analyst"],
+  "qa engineer": ["quality assurance", "test engineer", "sdet", "qa analyst", "automation engineer"],
+  "quant": ["quantitative researcher", "quantitative analyst", "quantitative developer", "quant researcher", "quant developer", "quant analyst"],
+};
+
+// ── Seniority scoring ───────────────────────────────────────────────
 const SENIORITY_LEVELS = ["intern", "junior", "mid", "senior", "staff", "lead", "principal", "director", "vp"];
 
+function normalizeSeniority(s: string): string {
+  const l = s.toLowerCase();
+  if (l.includes("intern") || l.includes("co-op") || l.includes("coop")) return "intern";
+  if (l.includes("junior") || l.includes("entry") || l.includes("associate") || l.includes("new grad") || l.includes("early career")) return "junior";
+  if (l.includes("mid") || l.includes("intermediate")) return "mid";
+  if (l.includes("senior") || l.includes("sr.") || l.includes("sr ")) return "senior";
+  if (l.includes("staff") || l.includes("principal")) return "staff";
+  if (l.includes("lead") || l.includes("manager")) return "lead";
+  if (l.includes("director")) return "director";
+  if (l.includes("vp") || l.includes("vice president")) return "vp";
+  return l;
+}
+
 function seniorityScore(jobSeniority: string | null, targetSeniority: string): number {
-  if (!jobSeniority) return 0;
-  const normalize = (s: string) => {
-    const l = s.toLowerCase();
-    if (l.includes("intern")) return "intern";
-    if (l.includes("junior") || l.includes("entry")) return "junior";
-    if (l.includes("mid")) return "mid";
-    if (l.includes("senior") || l.includes("sr")) return "senior";
-    if (l.includes("staff")) return "staff";
-    if (l.includes("lead")) return "lead";
-    if (l.includes("principal")) return "principal";
-    if (l.includes("director")) return "director";
-    if (l.includes("vp") || l.includes("vice president")) return "vp";
-    if (l.includes("manager")) return "senior";
-    return l;
-  };
-  const a = SENIORITY_LEVELS.indexOf(normalize(jobSeniority));
-  const b = SENIORITY_LEVELS.indexOf(normalize(targetSeniority));
-  if (a === -1 || b === -1) return 0;
+  if (!jobSeniority) return 0.3; // Unknown seniority = partial credit, don't penalize
+  const a = SENIORITY_LEVELS.indexOf(normalizeSeniority(jobSeniority));
+  const b = SENIORITY_LEVELS.indexOf(normalizeSeniority(targetSeniority));
+  if (a === -1 || b === -1) return 0.3;
   const dist = Math.abs(a - b);
   if (dist === 0) return 1;
-  if (dist === 1) return 0.5;
+  if (dist === 1) return 0.6;
   return 0;
 }
 
+// ── Infer seniority from job title when DB field is null ────────────
+function inferSeniority(title: string): string | null {
+  const l = title.toLowerCase();
+  if (/\bintern\b|\bco-?op\b/.test(l)) return "intern";
+  if (/\bjunior\b|\bjr\.?\b|\bentry[- ]level\b|\bassociate\b|\bnew grad\b/.test(l)) return "junior";
+  if (/\bsenior\b|\bsr\.?\b/.test(l)) return "senior";
+  if (/\bstaff\b/.test(l)) return "staff";
+  if (/\bprincipal\b/.test(l)) return "principal";
+  if (/\blead\b/.test(l)) return "lead";
+  if (/\bdirector\b/.test(l)) return "director";
+  if (/\bvp\b|\bvice president\b/.test(l)) return "vp";
+  return null;
+}
+
+// ── Title scoring with synonym expansion ────────────────────────────
 function titleScore(jobTitle: string, targetRoles: string[]): number {
-  const jWords = new Set(jobTitle.toLowerCase().split(/\W+/).filter(w => w.length > 2));
+  const jLower = jobTitle.toLowerCase();
+  const jWords = new Set(jLower.split(/\W+/).filter(w => w.length > 1));
+
   let best = 0;
   for (const role of targetRoles) {
-    const rWords = role.toLowerCase().split(/\W+/).filter(w => w.length > 2);
+    // Direct substring check — "ML Engineer" in "Senior ML Engineer"
+    if (jLower.includes(role.toLowerCase())) {
+      best = Math.max(best, 1.0);
+      continue;
+    }
+
+    // Check if the job title matches any synonym of the target role
+    const roleLower = role.toLowerCase();
+    for (const [canonical, synonyms] of Object.entries(TITLE_SYNONYMS)) {
+      const allVariants = [canonical, ...synonyms];
+      const roleMatchesGroup = allVariants.some(v => roleLower.includes(v) || v.includes(roleLower));
+      if (roleMatchesGroup) {
+        const jobMatchesGroup = allVariants.some(v => jLower.includes(v));
+        if (jobMatchesGroup) {
+          best = Math.max(best, 0.85);
+          break;
+        }
+      }
+    }
+
+    // Word overlap fallback
+    const rWords = role.toLowerCase().split(/\W+/).filter(w => w.length > 1);
     if (rWords.length === 0) continue;
     const overlap = rWords.filter(w => jWords.has(w)).length;
     const score = overlap / rWords.length;
@@ -59,24 +175,142 @@ function titleScore(jobTitle: string, targetRoles: string[]): number {
   return best;
 }
 
-function skillScore(jobSkillsJson: string | null, profileSkills: string[]): number {
-  if (!jobSkillsJson || profileSkills.length === 0) return 0;
+// ── Skill scoring with bidirectional matching ──────────────────────
+// Returns both a blended score and a raw match count.
+// "forward" = what fraction of YOUR skills the job mentions (relevance to you)
+// "reverse" = what fraction of the JOB's skills you have (how qualified you are)
+// Blending both means a React dev and a Python dev score very differently on the same job.
+function skillScore(
+  jobSkillsJson: string | null,
+  profileSkillsCanonical: Set<string>
+): { score: number; matchCount: number } {
+  if (profileSkillsCanonical.size === 0) return { score: 0, matchCount: 0 };
+  if (!jobSkillsJson) return { score: 0, matchCount: 0 };
   let jobSkills: string[];
   try {
     jobSkills = JSON.parse(jobSkillsJson);
-    if (!Array.isArray(jobSkills)) return 0;
+    if (!Array.isArray(jobSkills)) return { score: 0, matchCount: 0 };
   } catch {
-    return 0;
+    return { score: 0, matchCount: 0 };
   }
-  const jobSet = new Set(jobSkills.map(s => s.toLowerCase()));
-  const matches = profileSkills.filter(s => jobSet.has(s.toLowerCase())).length;
-  return matches / profileSkills.length;
+  if (jobSkills.length === 0) return { score: 0, matchCount: 0 };
+  const jobCanonical = canonicalSkillSet(jobSkills);
+  let matches = 0;
+  for (const sk of profileSkillsCanonical) {
+    if (jobCanonical.has(sk)) matches++;
+  }
+  const forward = matches / profileSkillsCanonical.size;  // how relevant to you
+  const reverse = matches / jobCanonical.size;             // how qualified you are
+  // Blend: 40% forward + 60% reverse — reverse matters more because it differentiates
+  // A frontend dev matching 5/5 job skills scores way higher than matching 5/20 job skills
+  const score = forward * 0.4 + reverse * 0.6;
+  return { score, matchCount: matches };
 }
 
+// Same bidirectional logic for title-extracted skill sets (jobs without skills field)
+function skillScoreFromSet(
+  jobSkills: Set<string>,
+  profileSkillsCanonical: Set<string>
+): { score: number; matchCount: number } {
+  if (profileSkillsCanonical.size === 0 || jobSkills.size === 0) return { score: 0, matchCount: 0 };
+  let matches = 0;
+  for (const sk of profileSkillsCanonical) {
+    if (jobSkills.has(sk)) matches++;
+  }
+  const forward = matches / profileSkillsCanonical.size;
+  const reverse = matches / jobSkills.size;
+  return { score: forward * 0.4 + reverse * 0.6, matchCount: matches };
+}
+
+// ── Title-based skill extraction for jobs without skills field ──────
+function extractSkillsFromTitle(title: string): Set<string> {
+  const skills = new Set<string>();
+  const lower = title.toLowerCase();
+  const checks: [RegExp, string][] = [
+    [/\bpython\b/, "python"], [/\bjava\b/, "java"], [/\bjavascript\b|\bjs\b|\btypescript\b|\bts\b/, "javascript"],
+    [/\breact\b|\bnext\.?js\b/, "react"], [/\bvue\b|\bnuxt\b/, "vue"], [/\bangular\b/, "angular"],
+    [/\bnode\.?js\b|\bnode\b/, "javascript"], [/\bc\+\+\b|\bcpp\b/, "c++"], [/\bc#\b|\.net\b/, "c#"],
+    [/\bruby\b|\brails\b/, "ruby"], [/\bphp\b|\blaravel\b/, "php"], [/\bgo\b|\bgolang\b/, "golang"],
+    [/\brust\b/, "rust"], [/\bswift\b/, "swift"], [/\bkotlin\b/, "java"],
+    [/\baws\b/, "aws"], [/\bgcp\b|\bgoogle cloud\b/, "gcp"], [/\bazure\b/, "azure"],
+    [/\bkubernetes\b|\bk8s\b/, "kubernetes"], [/\bdocker\b/, "docker"],
+    [/\bml\b|\bmachine learning\b|\bai\b|\bdeep learning\b/, "machine learning"],
+    [/\bdata\b/, "data"], [/\bsql\b|\bpostgres\b|\bmysql\b/, "sql"],
+    [/\bdevops\b|\bsre\b|\binfra\b/, "devops"], [/\bsecurity\b|\bcyber\b/, "security"],
+    [/\bblockchain\b|\bweb3\b|\bsolidity\b|\bcrypto\b/, "web3"],
+    [/\bfrontend\b|\bfront-end\b|\bfront end\b/, "frontend"], [/\bbackend\b|\bback-end\b|\bback end\b/, "backend"],
+    [/\bfull[- ]?stack\b/, "fullstack"],
+  ];
+  for (const [re, skill] of checks) {
+    if (re.test(lower)) skills.add(skill);
+  }
+  return skills;
+}
+
+// ── Industry scoring with word-boundary matching ────────────────────
 function industryScore(jobIndustry: string | null, targetIndustries: string[]): number {
   if (!jobIndustry || targetIndustries.length === 0) return 0;
   const jLower = jobIndustry.toLowerCase();
-  return targetIndustries.some(i => jLower.includes(i.toLowerCase()) || i.toLowerCase().includes(jLower)) ? 1 : 0;
+  for (const ind of targetIndustries) {
+    const iLower = ind.toLowerCase();
+    // Exact match
+    if (jLower === iLower) return 1;
+    // Word-boundary check for short terms to prevent "IT" matching "Utilities"
+    if (iLower.length <= 3) {
+      const re = new RegExp(`\\b${iLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+      if (re.test(jLower)) return 1;
+    } else {
+      // Longer terms: substring is fine
+      if (jLower.includes(iLower) || iLower.includes(jLower)) return 1;
+    }
+  }
+  return 0;
+}
+
+// ── Keyword scoring across title + skills + department ──────────────
+function keywordScore(
+  title: string,
+  skillsJson: string | null,
+  department: string | null,
+  category: string | null,
+  keywords: string[]
+): { score: number; matches: number } {
+  if (keywords.length === 0) return { score: 0, matches: 0 };
+  // Build a searchable text blob from all available fields
+  const parts = [title];
+  if (department) parts.push(department);
+  if (category) parts.push(category);
+  if (skillsJson) {
+    try {
+      const arr = JSON.parse(skillsJson);
+      if (Array.isArray(arr)) parts.push(arr.join(" "));
+    } catch { /* ignore */ }
+  }
+  const blob = parts.join(" ").toLowerCase();
+  let matches = 0;
+  for (const kw of keywords) {
+    if (blob.includes(kw.toLowerCase())) matches++;
+  }
+  return { score: keywords.length > 0 ? matches / keywords.length : 0, matches };
+}
+
+// ── Location scoring ────────────────────────────────────────────────
+function locationScore(jobLocation: string | null, jobRemote: boolean, preference: string | null): number {
+  if (!preference) return 0;
+  const pref = preference.toLowerCase();
+  if (pref === "remote" || pref.includes("remote")) {
+    return jobRemote ? 1 : 0;
+  }
+  if (!jobLocation) return 0;
+  const loc = jobLocation.toLowerCase();
+  // Check if the preference city/state appears in the job location
+  const prefParts = pref.split(/[,\s]+/).filter(p => p.length > 2);
+  for (const part of prefParts) {
+    if (loc.includes(part)) return 1;
+  }
+  // Remote jobs are a partial match for any location preference
+  if (jobRemote) return 0.5;
+  return 0;
 }
 
 interface Profile {
@@ -137,27 +371,36 @@ export async function POST(request: NextRequest) {
         model: "llama-3.3-70b-versatile",
         messages: [
           {
+            role: "system",
+            content: `You are a job-matching assistant. Extract structured profile data from a resume to match against a job board database. The database stores job titles like "Software Engineer", "Data Scientist", "Product Manager", "ML Engineer", etc.
+
+IMPORTANT RULES:
+- target_roles: Use COMMON job board titles (not niche/academic ones). Include both the specific role AND broader variants. E.g. for an ML person: ["Machine Learning Engineer", "ML Engineer", "Data Scientist", "Software Engineer", "AI Engineer", "Research Engineer"]
+- skills: Extract ONLY the canonical/short form of each skill. Use "Python" not "Python 3.9". Use "React" not "React.js/Next.js". Use "AWS" not "Amazon Web Services". Use "SQL" not "PostgreSQL/MySQL". Keep to 10-20 core skills.
+- seniority: Infer from years of experience and titles held. 0-1yr=intern, 1-2yr=junior, 2-5yr=mid, 5-10yr=senior, 10+yr=staff/lead
+- industries: Use broad categories that match job board filters: "Technology", "Finance", "Healthcare", "E-commerce", "Fintech", "Crypto", "Consulting", etc.
+- keywords: Short terms (1-2 words each) that appear in job TITLES — e.g. "backend", "frontend", "data", "platform", "infrastructure", "growth", "analytics". NOT long phrases.
+- Heavily weight the user's stated intent. If they say "fintech internships", target_roles should lead with intern-level roles and industries should lead with Fintech.`,
+          },
+          {
             role: "user",
-            content: `Analyze this resume and job search intent. Return ONLY valid JSON, no other text.
+            content: `RESUME (first 15000 chars):
+${text.slice(0, 15000)}
 
-RESUME:
-${text.slice(0, 12000)}
+USER INTENT: ${intent || "Looking for relevant roles matching my background"}
 
-JOB SEARCH INTENT:
-${intent || "Looking for relevant roles matching my background"}
-
-Return JSON in this exact format:
+Return JSON:
 {
-  "target_roles": ["3-6 specific job titles the candidate should target, informed by BOTH their resume skills AND their stated intent"],
-  "skills": ["list of technical and domain skills from the resume"],
-  "seniority": "one of: intern, junior, mid, senior, staff, lead",
-  "industries": ["2-4 target industries, weighted toward the user's stated intent"],
-  "keywords": ["5-10 additional search keywords combining resume expertise and intent"],
-  "location_preference": "location if mentioned in intent, otherwise null"
+  "target_roles": ["4-8 common job titles, broadest first"],
+  "skills": ["10-20 canonical short-form skills"],
+  "seniority": "intern|junior|mid|senior|staff|lead",
+  "industries": ["2-5 broad industry categories"],
+  "keywords": ["8-15 short title-friendly search terms"],
+  "location_preference": "city/state or 'remote' or null"
 }`,
           },
         ],
-        temperature: 0.1,
+        temperature: 0.3,
         max_tokens: 1024,
         response_format: { type: "json_object" },
       }),
@@ -178,13 +421,24 @@ Return JSON in this exact format:
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON in model response");
     profile = JSON.parse(jsonMatch[0]);
+
+    // Normalize: ensure arrays exist and are reasonable
+    profile.target_roles = (profile.target_roles || []).slice(0, 10);
+    profile.skills = (profile.skills || []).slice(0, 25);
+    profile.keywords = (profile.keywords || []).slice(0, 20);
+    profile.industries = (profile.industries || []).slice(0, 6);
+    profile.seniority = profile.seniority || "mid";
   } catch (e: unknown) {
     console.error("Resume analysis error:", e);
     const msg = e instanceof Error ? e.message : "Failed to analyze resume";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
+  // Pre-compute canonical skill set for the profile
+  const profileSkillsCanonical = canonicalSkillSet(profile.skills);
+
   // Build filtered query — apply user's active filters before scoring
+  try {
   const whereClauses: string[] = [];
   const queryArgs: (string | number)[] = [];
 
@@ -236,8 +490,7 @@ Return JSON in this exact format:
   const whereStr = whereClauses.length > 0 ? "WHERE " + whereClauses.join(" AND ") : "";
 
   const result = await db.execute({
-    sql: `SELECT j.id, j.title, j.company, j.location, j.remote, j.seniority, j.skills, j.industry, j.salary_min, j.salary_max, j.salary_currency, j.posted_date, j.url, j.category, j.department, j.company_size, j.company_domain, j.company_description, j.hybrid, j.salary_period, j.source_platform, j.company_slug,
-          GROUP_CONCAT(DISTINCT b.vc_name) as vc_backers
+    sql: `SELECT j.*, GROUP_CONCAT(DISTINCT b.vc_name) as vc_backers
           FROM jobs j
           LEFT JOIN job_vc_backers b ON j.id = b.job_id
           ${whereStr}
@@ -246,81 +499,105 @@ Return JSON in this exact format:
     args: queryArgs,
   });
 
-  // Score each job
-  const scored: ScoredJob[] = [];
+  // Score each job and keep full row data for matches (avoids second query)
+  const scored: { row: Record<string, unknown>; score: number; reasons: string[] }[] = [];
   for (const row of result.rows) {
     const reasons: string[] = [];
 
+    // Title scoring (with synonym expansion)
     const tScore = titleScore(row.title as string, profile.target_roles);
-    if (tScore > 0.3) reasons.push("title match");
+    if (tScore >= 0.8) reasons.push("strong title match");
+    else if (tScore >= 0.4) reasons.push("title match");
 
-    const skScore = skillScore(row.skills as string | null, profile.skills);
-    if (skScore > 0) reasons.push(`${Math.round(skScore * profile.skills.length)}/${profile.skills.length} skills`);
+    // Skill scoring (bidirectional — differentiates resumes heavily)
+    let skResult: { score: number; matchCount: number };
+    if (row.skills) {
+      skResult = skillScore(row.skills as string, profileSkillsCanonical);
+    } else {
+      const titleSkills = extractSkillsFromTitle(row.title as string);
+      skResult = skillScoreFromSet(titleSkills, profileSkillsCanonical);
+    }
+    const skScore = skResult.score;
+    if (skResult.matchCount > 0) {
+      reasons.push(`${skResult.matchCount} skill${skResult.matchCount > 1 ? "s" : ""}`);
+    }
 
-    const senScore = seniorityScore(row.seniority as string | null, profile.seniority);
-    if (senScore > 0) reasons.push("seniority match");
+    // Seniority scoring (with title-based inference fallback)
+    const jobSeniority = (row.seniority as string | null) || inferSeniority(row.title as string);
+    const senScore = seniorityScore(jobSeniority, profile.seniority);
+    if (senScore >= 0.6) reasons.push("seniority match");
 
+    // Industry scoring (with word-boundary matching)
     const indScore = industryScore(row.industry as string | null, profile.industries);
     if (indScore > 0) reasons.push("industry match");
 
-    // Also boost for keyword matches in title
-    const titleLower = (row.title as string).toLowerCase();
-    const kwMatches = profile.keywords.filter(kw => titleLower.includes(kw.toLowerCase())).length;
-    const kwScore = profile.keywords.length > 0 ? kwMatches / profile.keywords.length : 0;
-    if (kwMatches > 0) reasons.push(`${kwMatches} keyword${kwMatches > 1 ? "s" : ""}`);
-
-    const totalScore = Math.round(
-      (tScore * 35 + skScore * 25 + senScore * 15 + indScore * 15 + kwScore * 10)
+    // Keyword scoring (across title + skills + department + category)
+    const kw = keywordScore(
+      row.title as string,
+      row.skills as string | null,
+      row.department as string | null,
+      row.category as string | null,
+      profile.keywords
     );
+    if (kw.matches > 0) reasons.push(`${kw.matches} keyword${kw.matches > 1 ? "s" : ""}`);
 
-    if (totalScore >= 10 && reasons.length > 0) {
-      scored.push({ id: row.id as string, score: totalScore, reasons });
+    // Location scoring
+    const locScore = locationScore(
+      row.location as string | null,
+      (row.remote as number) === 1,
+      profile.location_preference
+    );
+    if (locScore >= 0.5) reasons.push("location match");
+
+    // Weighted composite — skills-heavy so resume content actually differentiates:
+    // skills=35 (up from 25), keywords=20 (up from 15), title=20 (down from 30),
+    // seniority=10, industry=10, location=5
+    const baseScore =
+      tScore * 20 + skScore * 35 + senScore * 10 + indScore * 10 + kw.score * 20 + locScore * 5;
+
+    // Skill-fit bonus: when you match ≥60% of a job's required skills AND ≥30%
+    // of your skills appear in the job, add up to 15 bonus points. This is the
+    // single biggest differentiator between resumes — it rewards deep skill alignment
+    // over shallow "same job title" matches.
+    let skillBonus = 0;
+    if (skResult.matchCount >= 3 && skScore >= 0.5) {
+      skillBonus = Math.min(15, Math.round(skScore * 20));
+    }
+
+    const totalScore = Math.round(baseScore + skillBonus);
+
+    if (totalScore >= 20 && reasons.length >= 2) {
+      scored.push({ row, score: totalScore, reasons });
     }
   }
 
-  // Sort by score descending
+  // Sort by score descending, take top 200
   scored.sort((a, b) => b.score - a.score);
-
-  // Return top 200
   const topJobs = scored.slice(0, 200);
-  const jobIds = topJobs.map(j => j.id);
 
-  // Fetch full job data for matched IDs
-  let jobs: Record<string, unknown>[] = [];
-  if (jobIds.length > 0) {
-    const placeholders = jobIds.map(() => "?").join(",");
-    const fullResult = await db.execute({
-      sql: `SELECT j.*, GROUP_CONCAT(DISTINCT b.vc_name) as vc_backers
-            FROM jobs j
-            LEFT JOIN job_vc_backers b ON j.id = b.job_id
-            WHERE j.id IN (${placeholders})
-            GROUP BY j.id`,
-      args: jobIds,
-    });
-    // Map to objects
-    const jobMap = new Map<string, Record<string, unknown>>();
-    for (const row of fullResult.rows) {
-      const obj: Record<string, unknown> = {};
-      for (const col of fullResult.columns) {
-        obj[col] = row[col as keyof typeof row];
-      }
-      obj.vc_backers = row.vc_backers ? (row.vc_backers as string).split(",") : [];
-      obj.remote = (row.remote as number) === 1;
-      obj.hybrid = (row.hybrid as number) === 1;
-      jobMap.set(row.id as string, obj);
+  // Build response directly from already-fetched rows (no second query needed)
+  const jobs = topJobs.map(({ row, score, reasons }) => {
+    const obj: Record<string, unknown> = {};
+    for (const col of result.columns) {
+      obj[col] = row[col as keyof typeof row];
     }
-    // Maintain score order
-    for (const sj of topJobs) {
-      const job = jobMap.get(sj.id);
-      if (job) {
-        jobs.push({ ...job, match_score: sj.score, match_reasons: sj.reasons });
-      }
-    }
-  }
+    obj.vc_backers = row.vc_backers ? (row.vc_backers as string).split(",") : [];
+    obj.remote = (row.remote as number) === 1;
+    obj.hybrid = (row.hybrid as number) === 1;
+    obj.match_score = score;
+    obj.match_reasons = reasons;
+    return obj;
+  });
 
   return NextResponse.json({
     profile,
     jobs,
     total: scored.length,
   });
+
+  } catch (e: unknown) {
+    console.error("Job matching error:", e);
+    const msg = e instanceof Error ? e.message : "Failed to match jobs";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

@@ -71,9 +71,12 @@ export default function PageClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...resumeData, filters }),
     })
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) return;
+        return r.json();
+      })
       .then((data) => {
-        if (data.jobs) {
+        if (data?.jobs) {
           setMatchedJobs(data.jobs);
           setMatchTotal(data.total);
         }
