@@ -74,8 +74,14 @@ export default function ResumeBar({ onMatchResults, onClear, isMatching }: Resum
       }
 
       if (!resp.ok) {
-        const data = await resp.json();
-        setError(data.error || "Something went wrong");
+        let errorMsg = `Server error (${resp.status})`;
+        try {
+          const data = await resp.json();
+          errorMsg = data.error || errorMsg;
+        } catch {
+          // Response body was empty or not JSON (e.g., timeout)
+        }
+        setError(errorMsg);
         setLoading(false);
         return;
       }
