@@ -16,9 +16,9 @@ Job board aggregator for VC-backed startups. Pulls listings from 35+ venture cap
 ## How it works
 
 ```
-Python scrapers → Turso DB (hosted SQLite) ← Next.js on Vercel
-    (cron)              ↑                       (SSR)
-                   12,800+ jobs
+Python scrapers → Cloudflare D1 (SQLite at edge) ← Next.js on Vercel
+    (cron)                  ↑                          (SSR)
+                       12,800+ jobs
 ```
 
 **Scrapers** pull from:
@@ -49,8 +49,9 @@ python scripts/aggregate.py --platforms simplify
 
 Requires a `.env` file with:
 ```
-TURSO_DATABASE_URL=libsql://your-db.turso.io
-TURSO_AUTH_TOKEN=your-token
+CLOUDFLARE_API_KEY=your-api-key
+CLOUDFLARE_ACCT_ID=your-account-id
+CLOUDFLARE_DB_ID=your-d1-database-id
 ```
 
 ### Web app
@@ -63,15 +64,16 @@ npm run dev
 
 Requires `web/.env.local` with:
 ```
-TURSO_DATABASE_URL=libsql://your-db.turso.io
-TURSO_AUTH_TOKEN=your-token
+CLOUDFLARE_API_KEY=your-api-key
+CLOUDFLARE_ACCT_ID=your-account-id
+CLOUDFLARE_DB_ID=your-d1-database-id
 GROQ_API_KEY=your-groq-key
 ```
 
 ## Tech stack
 
 - **Scrapers**: Python, httpx, asyncio
-- **Database**: Turso (hosted libsql/SQLite)
+- **Database**: Cloudflare D1 (SQLite at edge)
 - **Web**: Next.js 16, Tailwind CSS, TypeScript
 - **Resume AI**: Groq (Llama 3.3 70B)
 - **Hosting**: Vercel
