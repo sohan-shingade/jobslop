@@ -1,0 +1,16 @@
+[     -29ms] [ERROR] Failed to load resource: the server responded with a status of 503 () @ https://www.auxmoney.com/jobs/#job-list:0
+[    1370ms] [ERROR] Failed to load resource: the server responded with a status of 503 () @ https://www.auxmoney.com/favicon.ico:0
+[    1917ms] [ERROR] Failed to load resource: net::ERR_FAILED @ chrome-extension://invalid/:0
+[    2060ms] [WARNING] [Meta Pixel] - Multiple pixels with conflicting versions were detected on this page. @ https://connect.facebook.net/en_US/fbevents.js:175
+[    6664ms] [WARNING] [Meta Pixel] - Multiple pixels with conflicting versions were detected on this page. @ https://connect.facebook.net/en_US/fbevents.js:175
+[    7084ms] [ERROR] Failed to load resource: the server responded with a status of 503 () @ https://www.auxmoney.com/favicon.ico:0
+[   19973ms] [ERROR] Attestation check for Attribution Reporting on https://www.facebook.com failed. @ https://www.auxmoney.com/jobs/:0
+[   20207ms] [WARNING] [Meta Pixel] - Duplicate Pixel ID: 1417724968481670. @ https://connect.facebook.net/en_US/fbevents.js:175
+[   20982ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://trck-ipv6.spoteffects.net/analytics/ip_to_idvisit.php?ipt=6&v=0.5.0&vid=61007572&idsite=1029:0
+[   23003ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://www.auxmoney.com/wp-content/uploads/handelsblatt-beste-dienstleister-107x161-1.avif:0
+[   47609ms] [WARNING] Failed to decode downloaded font: data:font/woff;base64,bW9kdWxlLmV4cG9ydHMgPSBfX3dlYnBhY2tfcHVibGljX3BhdGhfXyArICIuL2ZvbnRzL09wZW5TYW5zLVJlZ3VsYXItd2ViZm9udC53b2ZmIjs= @ https://auxmoney-gmbh.jobs.personio.de/job/2576358:346
+[   47609ms] [WARNING] OTS parsing error: invalid sfntVersion: 1836016757 @ https://auxmoney-gmbh.jobs.personio.de/job/2576358:346
+[   47609ms] [WARNING] Failed to decode downloaded font: data:font/woff;base64,bW9kdWxlLmV4cG9ydHMgPSBfX3dlYnBhY2tfcHVibGljX3BhdGhfXyArICIuL2ZvbnRzL09wZW5TYW5zLUJvbGQtd2ViZm9udC53b2ZmIjs= @ https://auxmoney-gmbh.jobs.personio.de/job/2576358:346
+[   47609ms] [WARNING] OTS parsing error: invalid sfntVersion: 1836016757 @ https://auxmoney-gmbh.jobs.personio.de/job/2576358:346
+[   47609ms] [WARNING] Failed to decode downloaded font: data:font/woff;base64,bW9kdWxlLmV4cG9ydHMgPSBfX3dlYnBhY2tfcHVibGljX3BhdGhfXyArICIuL2ZvbnRzL09wZW5TYW5zLVNlbWlib2xkLXdlYmZvbnQud29mZiI7 @ https://auxmoney-gmbh.jobs.personio.de/job/2576358:346
+[   47609ms] [WARNING] OTS parsing error: invalid sfntVersion: 1836016757 @ https://auxmoney-gmbh.jobs.personio.de/job/2576358:346
