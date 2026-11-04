@@ -48,7 +48,11 @@ CONFIG_FILE = ROOT / "config" / "vc_boards.yaml"
 MAX_CONCURRENT = 5
 MAX_AGE_DAYS = 30
 MAX_JOBS = 20_000  # D1 free tier allows 5M rows read a day; every full scan costs one read per row
-BATCH_SIZE = 100
+# D1 free tier allows 100k rows written a day, and each job costs about 12 (table, indexes, backers).
+# We run 4 times a day. Cleanup may use half of a run's budget so new jobs always get the rest.
+WRITE_BUDGET = 20_000
+DELETE_BATCH = 100
+rows_written = 0
 
 PLATFORM_SCRAPERS = {
     "consider": ConsiderScraper,
@@ -100,6 +104,8 @@ def execute_sql(api_url, token, statements, max_retries=3):
                                    resp.status_code, wait, attempt + 1, max_retries)
                     time.sleep(wait)
                     continue
+            if not resp.ok:
+                logger.error("D1 returned %d: %s", resp.status_code, resp.text[:500])
             resp.raise_for_status()
             break
         data = resp.json()
@@ -107,7 +113,10 @@ def execute_sql(api_url, token, statements, max_retries=3):
             for err in data.get("errors", []):
                 logger.error("D1 error: %s", err.get("message", err))
         result_list = data.get("result", [{}])
-        results.append(result_list[0] if result_list else {})
+        result = result_list[0] if result_list else {}
+        global rows_written
+        rows_written += result.get("meta", {}).get("rows_written", 0)
+        results.append(result)
     return results
 
 
@@ -122,17 +131,17 @@ def get_known_urls(api_url, token) -> set[str]:
 
 
 def upsert_jobs(http_url, token, jobs: list[Job]):
-    """Batch upsert jobs into D1."""
-    stmts = []
-    vc_stmts = []
-
-    for job in jobs:
+    """Upsert jobs into D1, newest first, until this run's write budget is used."""
+    for done, job in enumerate(jobs):
+        if rows_written >= WRITE_BUDGET:
+            logger.info("Write budget used; %d jobs left for the next run", len(jobs) - done)
+            return
         jid = job_id(job.url)
         skills_json = json.dumps(job.skills) if job.skills else None
         hiring_json = json.dumps(job.hiring_period) if job.hiring_period else None
         edu_json = json.dumps(job.education_level) if job.education_level else None
 
-        stmts.append((
+        stmts = [(
             """INSERT INTO jobs (id, title, company, company_slug, company_size, company_domain,
                location, remote, hybrid, url, posted_date, seniority,
                salary_min, salary_max, salary_currency, salary_period,
@@ -164,44 +173,35 @@ def upsert_jobs(http_url, token, jobs: list[Job]):
              job.salary_min, job.salary_max, job.salary_currency, job.salary_period,
              job.department, job.job_type, job.industry, skills_json,
              job.category, job.source_platform, hiring_json, edu_json],
-        ))
-
-        for vc in job.vc_backers:
-            vc_stmts.append((
-                "INSERT OR IGNORE INTO job_vc_backers (job_id, vc_name) VALUES (?, ?)",
-                [jid, vc],
-            ))
-
-        # Flush in batches
-        if len(stmts) >= BATCH_SIZE:
-            execute_sql(http_url, token, stmts)
-            stmts = []
-
-    if stmts:
+        )]
+        stmts += [
+            ("INSERT OR IGNORE INTO job_vc_backers (job_id, vc_name) VALUES (?, ?)", [jid, vc])
+            for vc in job.vc_backers
+        ]
         execute_sql(http_url, token, stmts)
 
-    # Insert VC backers
-    for i in range(0, len(vc_stmts), BATCH_SIZE):
-        execute_sql(http_url, token, vc_stmts[i:i + BATCH_SIZE])
+
+def age_cutoff() -> str:
+    return (datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS)).isoformat()
 
 
 def clean_db(api_url, token, blocked: list[str]):
-    """Keep the table small and free of blocked companies. Safe to run any time."""
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS)).isoformat()
+    """Keep the table small and free of blocked companies. Safe to run any time; resumes next run."""
     marks = ",".join("?" for _ in blocked)
-    statements = [("DELETE FROM jobs WHERE posted_date < ? OR posted_date IS NULL", [cutoff])]
-    if blocked:
-        statements.append((f"DELETE FROM jobs WHERE company IN ({marks})", blocked))
-    statements.append((
-        "DELETE FROM jobs WHERE id IN (SELECT id FROM jobs ORDER BY posted_date DESC LIMIT -1 OFFSET ?)",
-        [MAX_JOBS],
-    ))
-    results = execute_sql(api_url, token, statements)
-    removed = sum(r["meta"]["changes"] for r in results)
+    rules = [
+        (f"SELECT id FROM jobs WHERE company IN ({marks}) LIMIT {DELETE_BATCH}", blocked),
+        (f"SELECT id FROM jobs WHERE posted_date < ? OR posted_date IS NULL ORDER BY posted_date LIMIT {DELETE_BATCH}", [age_cutoff()]),
+        (f"SELECT id FROM jobs ORDER BY posted_date DESC LIMIT {DELETE_BATCH} OFFSET {MAX_JOBS}", None),
+    ]
+    removed = 0
+    for pick, args in rules:
+        while rows_written < WRITE_BUDGET // 2:
+            result = execute_sql(api_url, token, [(f"DELETE FROM jobs WHERE id IN ({pick})", args)])[0]
+            changes = result["meta"]["changes"]
+            removed += changes
+            if not changes:
+                break
     if removed:
-        execute_sql(api_url, token, [
-            ("DELETE FROM job_vc_backers WHERE job_id NOT IN (SELECT id FROM jobs)", None),
-        ])
         logger.info("Removed %d old or blocked jobs from DB", removed)
 
 
@@ -275,13 +275,19 @@ async def run(
     tasks = [scrape_board(board, semaphore, known_urls) for board in boards]
     results = await asyncio.gather(*tasks)
 
+    # Skip jobs cleanup would delete anyway: re-adding them every run is what used up the write limit.
+    cutoff = age_cutoff()
     new_jobs: list[Job] = []
     for job_list in results:
-        new_jobs.extend(j for j in job_list if j.company not in blocked)
+        new_jobs.extend(
+            j for j in job_list
+            if j.company not in blocked and j.posted_date.isoformat() >= cutoff
+        )
     logger.info("Scraped %d new jobs", len(new_jobs))
 
     # Deduplicate (merges vc_backers across boards)
     unique_jobs = deduplicate(new_jobs)
+    unique_jobs.sort(key=lambda j: j.posted_date.isoformat(), reverse=True)
 
     # Upsert into D1
     logger.info("Upserting %d jobs into D1...", len(unique_jobs))
