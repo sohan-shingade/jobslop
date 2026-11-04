@@ -13,6 +13,10 @@ Job board aggregator for VC-backed startups. Pulls listings from 35+ venture cap
 - **Salary data** where available (74% of Consider-sourced jobs)
 - Updated daily via GitHub Actions
 
+## Run it locally
+
+`./scripts/local.sh scrape` fills `data/jobs.db`, then `./scripts/local.sh serve` hosts it at http://127.0.0.1:3000. No Cloudflare account needed. Set `JOBSLOP_HOST` to bind another address.
+
 ## How it works
 
 ```

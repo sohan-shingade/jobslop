@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import abc
 import logging
+import os
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
+# The local database keeps 30 days of jobs. The public site's free D1 database has room for about 10.
+MAX_AGE_DAYS = 30 if os.getenv("JOBSLOP_SQLITE") else 10
 
 
 @dataclass

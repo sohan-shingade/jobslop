@@ -7,7 +7,8 @@ The API pattern is: POST /wday/cxs/{company}/{site}/jobs
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -63,6 +64,10 @@ class WorkdayScraper(BaseScraper):
                             continue
                         seen_paths.add(path)
 
+                        # Some sites leave the date out of search results.
+                        if "postedOn" not in posting and f"{self._base_url}{path}" not in self.known_urls:
+                            posting["postedOn"] = await self._fetch_posted_on(client, path)
+
                         job = self._parse_posting(posting)
                         if job and job.url not in self.known_urls:
                             all_jobs.append(job)
@@ -74,6 +79,18 @@ class WorkdayScraper(BaseScraper):
 
         self.logger.info("Fetched %d jobs from %s (Workday)", len(all_jobs), self._company_name)
         return all_jobs
+
+    async def _fetch_posted_on(self, client: httpx.AsyncClient, path: str) -> str:
+        try:
+            resp = await client.get(
+                self._api_url.rsplit("/jobs", 1)[0] + path,
+                headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+            )
+            resp.raise_for_status()
+            return resp.json().get("jobPostingInfo", {}).get("postedOn", "")
+        except (httpx.HTTPError, ValueError) as e:
+            self.logger.error("Workday job lookup failed for %s: %s", path, e)
+            return ""
 
     def _parse_posting(self, posting: dict) -> Job | None:
         try:
@@ -91,12 +108,10 @@ class WorkdayScraper(BaseScraper):
 
             # Parse posted date
             posted_text = posting.get("postedOn", "")
-            posted_date = datetime.now(timezone.utc)
-            if "Posted 30+ Days Ago" in posted_text:
-                pass  # keep as now, will be pruned
-            elif posted_text:
-                # "Posted Yesterday", "Posted 2 Days Ago", etc.
-                posted_date = datetime.now(timezone.utc)
+            days = re.search(r"(\d+)\+? Days? Ago", posted_text)
+            days_ago = int(days.group(1)) + ("+" in days.group(0)) if days else int("Yesterday" in posted_text)
+            # Workday only gives the day, so don't let these outrank jobs with exact times.
+            posted_date = (datetime.now(timezone.utc) - timedelta(days=days_ago)).replace(hour=0, minute=0, second=0, microsecond=0)
 
             hiring_period = classify_hiring_period(title)
             education_level = classify_education_level(title)

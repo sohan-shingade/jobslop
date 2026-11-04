@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 PAGE_SIZE = 50
 RATE_LIMIT_DELAY = 0.5  # seconds between paginated requests
 MAX_PAGES = 200  # safety limit
-DEFAULT_MAX_JOBS_FULL = 2000  # cap per board for full scrapes
+DEFAULT_MAX_JOBS_FULL = 10000  # cap per board for full scrapes
 DEFAULT_MAX_JOBS_INCREMENTAL = 500  # cap for incremental runs (new jobs rank high)
 KNOWN_PAGE_RATIO = 0.8  # stop if >80% of a page are known jobs
 KNOWN_PAGES_TO_STOP = 2  # stop after this many high-known-ratio pages in a row
@@ -78,12 +78,23 @@ class ConsiderScraper(BaseScraper):
         jobs: list[Job] = []
         sequence: str | None = None
         high_known_pages = 0
-        base_url = self.url.rstrip("/")
-        origin = re.match(r"(https?://[^/]+)", base_url).group(1)
-        api_url = f"{origin}/api-boards/search-jobs"
         incremental = len(self.known_urls) > 0
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            # The API wants the token and cookie the board page hands out.
+            try:
+                page = await client.get(self.url, headers={"User-Agent": "Mozilla/5.0"})
+                page.raise_for_status()
+            except httpx.HTTPError as e:
+                self.logger.error("Failed to fetch %s: %s", self.url, e)
+                return jobs
+            token = re.search(r'"csrfToken"\s*:\s*"([^"]+)"', page.text)
+            if not token:
+                self.logger.error("%s is no longer a Consider board: %s", self.name, page.url)
+                return jobs
+            origin = f"{page.url.scheme}://{page.url.host}"
+            api_url = f"{origin}/api-boards/search-jobs"
+
             for page_num in range(MAX_PAGES):
                 body = {
                     "meta": {"size": PAGE_SIZE},
@@ -103,6 +114,7 @@ class ConsiderScraper(BaseScraper):
                             "User-Agent": "Mozilla/5.0",
                             "Origin": origin,
                             "Referer": f"{origin}/jobs",
+                            "x-csrf-token": token.group(1),
                         },
                     )
                     resp.raise_for_status()

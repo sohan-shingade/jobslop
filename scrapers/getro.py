@@ -16,15 +16,16 @@ import asyncio
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from .base import BaseScraper, Job, categorize_role, classify_hiring_period, classify_education_level
+from .base import MAX_AGE_DAYS, BaseScraper, Job, categorize_role, classify_hiring_period, classify_education_level
 
 logger = logging.getLogger(__name__)
 
-RATE_LIMIT_DELAY = 2.0
+RATE_LIMIT_DELAY = 1.0
+MAX_PAGES = 3000  # safety limit
 
 
 class GetroScraper(BaseScraper):
@@ -35,34 +36,47 @@ class GetroScraper(BaseScraper):
         self._network_id: int | None = board_config.get("network_id")
 
     async def scrape(self) -> list[Job]:
-        page_data = await self._fetch_page_data()
-        if page_data is None:
-            return []
-
-        # Extract initial jobs from __NEXT_DATA__
-        jobs = self._extract_jobs_from_next_data(page_data)
-
-        # Discover network_id if not configured
         if self._network_id is None:
-            network = page_data.get("props", {}).get("pageProps", {}).get("network", {})
-            nid = network.get("id")
-            if nid:
+            page_data = await self._fetch_page_data()
+            if page_data is None:
+                return []
+            nid = page_data.get("props", {}).get("pageProps", {}).get("network", {}).get("id")
+            if not nid:
+                self.logger.error("Could not find the Getro network id for %s", self.name)
+                return []
+            self._network_id = int(nid)
+
+        jobs = await self._search_jobs()
+        self.logger.info("Fetched %d jobs from %s", len(jobs), self.name)
+        return jobs
+
+    async def _search_jobs(self) -> list[Job]:
+        """Page through the board's job search, newest first, until jobs are too old or already known."""
+        jobs: list[Job] = []
+        cutoff = datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS)
+        url = f"https://api.getro.com/api/v2/collections/{self._network_id}/search/jobs"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for page in range(MAX_PAGES):
                 try:
-                    self._network_id = int(nid)
-                except (ValueError, TypeError):
-                    pass
+                    resp = await client.post(
+                        url,
+                        json={"hitsPerPage": 20, "page": page, "filters": {"page": page}, "query": ""},
+                        headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+                    )
+                    resp.raise_for_status()
+                except httpx.HTTPError as e:
+                    self.logger.error("Getro search failed for %s page %d: %s", self.name, page, e)
+                    break
 
-        # Try paginated API fetch if we have a network_id and initial batch was limited
-        total = self._get_total_from_next_data(page_data)
-        if self._network_id and total and len(jobs) < total:
-            api_jobs = await self._fetch_via_api()
-            if len(api_jobs) > len(jobs):
-                jobs = api_jobs
-
-        self.logger.info(
-            "Fetched %d jobs from %s (total available: %s)",
-            len(jobs), self.name, total or "?"
-        )
+                parsed = [j for j in map(self._parse_getro_job, resp.json()["results"]["jobs"]) if j]
+                if not parsed:
+                    break
+                new = [j for j in parsed if j.url not in self.known_urls]
+                jobs.extend(new)
+                if not new or min(j.posted_date for j in parsed) < cutoff:
+                    break
+                await asyncio.sleep(RATE_LIMIT_DELAY)
         return jobs
 
     async def _fetch_page_data(self) -> dict | None:
@@ -95,32 +109,6 @@ class GetroScraper(BaseScraper):
                 self.logger.error("Failed to parse __NEXT_DATA__ JSON on %s", self.url)
                 return None
 
-    def _extract_jobs_from_next_data(self, data: dict) -> list[Job]:
-        """Extract jobs from the __NEXT_DATA__ initialState."""
-        jobs: list[Job] = []
-
-        try:
-            initial = data["props"]["pageProps"]["initialState"]
-            jobs_data = initial.get("jobs", {})
-            found = jobs_data.get("found", [])
-        except (KeyError, TypeError):
-            self.logger.warning("Unexpected __NEXT_DATA__ structure for %s", self.name)
-            return jobs
-
-        for item in found:
-            job = self._parse_getro_job(item)
-            if job:
-                jobs.append(job)
-
-        return jobs
-
-    def _get_total_from_next_data(self, data: dict) -> int | None:
-        """Get the total job count from __NEXT_DATA__."""
-        try:
-            return data["props"]["pageProps"]["initialState"]["jobs"].get("total")
-        except (KeyError, TypeError):
-            return None
-
     def _parse_getro_job(self, item: dict) -> Job | None:
         """Convert a Getro job item into a Job dataclass."""
         try:
@@ -139,7 +127,7 @@ class GetroScraper(BaseScraper):
                 location_str = "Unknown"
 
             # Remote
-            work_mode = item.get("workMode", "")
+            work_mode = item.get("work_mode", "")
             remote = work_mode == "remote" or "remote" in title.lower()
             if not remote and isinstance(locations, list):
                 remote = any("remote" in str(l).lower() for l in locations)
@@ -147,8 +135,8 @@ class GetroScraper(BaseScraper):
             # URL
             job_url = item.get("url", "")
 
-            # Posted date — Getro uses createdAt (unix timestamp)
-            created_at = item.get("createdAt")
+            # Posted date — Getro uses created_at (unix timestamp)
+            created_at = item.get("created_at")
             if isinstance(created_at, (int, float)):
                 posted_date = datetime.fromtimestamp(created_at, tz=timezone.utc)
             elif isinstance(created_at, str):
@@ -164,11 +152,11 @@ class GetroScraper(BaseScraper):
             # Enriched fields
             hybrid = work_mode == "hybrid"
             company_slug = org.get("slug")
-            headcount = org.get("headCount")
+            headcount = org.get("head_count")
             headcount_map = {1: "1-10", 2: "11-50", 3: "51-200", 4: "201-500", 5: "501-1000"}
             company_size = headcount_map.get(headcount, f"{headcount}") if headcount else None
             seniority = item.get("seniority")
-            industry_tags = org.get("industryTags", [])
+            industry_tags = org.get("industry_tags", [])
             industry = industry_tags[0] if industry_tags else None
             skills_raw = item.get("skills", [])
             skills = [s if isinstance(s, str) else s.get("label", "") for s in skills_raw] if skills_raw else []
@@ -194,99 +182,4 @@ class GetroScraper(BaseScraper):
             )
         except Exception as e:
             self.logger.debug("Failed to parse Getro job: %s", e)
-            return None
-
-    # ── API-based fetching (may require auth — fallback gracefully) ─────
-
-    async def _fetch_via_api(self) -> list[Job]:
-        """Try to fetch jobs via the Getro REST API. Falls back gracefully."""
-        jobs: list[Job] = []
-        page = 1
-        per_page = 50
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            while True:
-                url = (
-                    f"https://api.getro.com/v2/networks/{self._network_id}"
-                    f"/jobs?page={page}&per_page={per_page}"
-                )
-
-                try:
-                    resp = await client.get(
-                        url,
-                        headers={
-                            "Accept": "application/json",
-                            "User-Agent": "Mozilla/5.0",
-                        },
-                    )
-
-                    if resp.status_code == 401:
-                        self.logger.debug(
-                            "Getro API requires auth for %s — using __NEXT_DATA__ only",
-                            self.name,
-                        )
-                        return []
-
-                    resp.raise_for_status()
-                except httpx.HTTPError as e:
-                    self.logger.debug("Getro API failed for %s: %s", self.name, e)
-                    return []
-
-                data = resp.json()
-                items = data.get("items", [])
-                if not items:
-                    break
-
-                for item in items:
-                    job = self._parse_getro_api_job(item)
-                    if job:
-                        jobs.append(job)
-
-                total = data.get("total_count", 0)
-                if page * per_page >= total:
-                    break
-
-                page += 1
-                await asyncio.sleep(RATE_LIMIT_DELAY)
-
-        return jobs
-
-    def _parse_getro_api_job(self, item: dict) -> Job | None:
-        """Parse a job from the Getro v2 API (different schema from __NEXT_DATA__)."""
-        try:
-            title = item.get("title", "")
-            if not title:
-                return None
-
-            company = item.get("company", {})
-            company_name = company.get("name", "Unknown")
-
-            locations = item.get("locations", [])
-            location_str = self._normalize_location(locations)
-            remote = self._is_remote(locations, title)
-
-            job_url = item.get("url", "")
-            posted_str = item.get("published_at") or item.get("created_at", "")
-            try:
-                posted_date = datetime.fromisoformat(
-                    posted_str.replace("Z", "+00:00")
-                )
-            except (ValueError, AttributeError):
-                posted_date = datetime.now(timezone.utc)
-
-            return Job(
-                company=company_name,
-                title=title,
-                location=location_str,
-                url=job_url,
-                posted_date=posted_date,
-                vc_backers=[self.name],
-                category=categorize_role(title),
-                remote=remote,
-                source_platform="getro",
-                hiring_period=classify_hiring_period(title),
-                education_level=classify_education_level(title),
-            )
-        except Exception as e:
-            self.logger.debug("Failed to parse Getro API job: %s", e)
             return None
