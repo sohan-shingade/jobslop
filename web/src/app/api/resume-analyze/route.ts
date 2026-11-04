@@ -490,12 +490,11 @@ Return JSON:
   const whereStr = whereClauses.length > 0 ? "WHERE " + whereClauses.join(" AND ") : "";
 
   const result = await db.execute({
-    sql: `SELECT j.*, GROUP_CONCAT(DISTINCT b.vc_name) as vc_backers
+    sql: `SELECT j.*, (SELECT GROUP_CONCAT(b.vc_name) FROM job_vc_backers b WHERE b.job_id = j.id) as vc_backers
           FROM jobs j
-          LEFT JOIN job_vc_backers b ON j.id = b.job_id
           ${whereStr}
-          GROUP BY j.id
-          ORDER BY j.posted_date DESC`,
+          ORDER BY j.posted_date DESC
+          LIMIT 5000`,
     args: queryArgs,
   });
 

@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 CONFIG_FILE = ROOT / "config" / "vc_boards.yaml"
 MAX_CONCURRENT = 5
 MAX_AGE_DAYS = 30
+MAX_JOBS = 20_000  # D1 free tier allows 5M rows read a day; every full scan costs one read per row
 BATCH_SIZE = 100
 
 PLATFORM_SCRAPERS = {
@@ -184,14 +185,24 @@ def upsert_jobs(http_url, token, jobs: list[Job]):
         execute_sql(http_url, token, vc_stmts[i:i + BATCH_SIZE])
 
 
-def prune_old_jobs_db(api_url, token, max_age_days: int = MAX_AGE_DAYS):
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).isoformat()
-    results = execute_sql(api_url, token, [
-        ("DELETE FROM jobs WHERE posted_date < ?", [cutoff]),
-    ])
-    affected = results[0]["meta"]["changes"]
-    if affected:
-        logger.info("Pruned %d jobs older than %d days from DB", affected, max_age_days)
+def clean_db(api_url, token, blocked: list[str]):
+    """Keep the table small and free of blocked companies. Safe to run any time."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS)).isoformat()
+    marks = ",".join("?" for _ in blocked)
+    statements = [("DELETE FROM jobs WHERE posted_date < ? OR posted_date IS NULL", [cutoff])]
+    if blocked:
+        statements.append((f"DELETE FROM jobs WHERE company IN ({marks})", blocked))
+    statements.append((
+        "DELETE FROM jobs WHERE id IN (SELECT id FROM jobs ORDER BY posted_date DESC LIMIT -1 OFFSET ?)",
+        [MAX_JOBS],
+    ))
+    results = execute_sql(api_url, token, statements)
+    removed = sum(r["meta"]["changes"] for r in results)
+    if removed:
+        execute_sql(api_url, token, [
+            ("DELETE FROM job_vc_backers WHERE job_id NOT IN (SELECT id FROM jobs)", None),
+        ])
+        logger.info("Removed %d old or blocked jobs from DB", removed)
 
 
 def get_db_job_count(api_url, token) -> int:
@@ -201,13 +212,13 @@ def get_db_job_count(api_url, token) -> int:
 
 # ── Scraping ────────────────────────────────────────────────────────────
 
-def load_config(platform_filter: str | None = None) -> list[dict]:
+def load_config(platform_filter: str | None = None) -> tuple[list[dict], list[str]]:
     with open(CONFIG_FILE) as f:
         config = yaml.safe_load(f)
     boards = config.get("boards", [])
     if platform_filter:
         boards = [b for b in boards if b.get("platform") == platform_filter]
-    return boards
+    return boards, config.get("blocked_companies") or []
 
 
 async def scrape_board(
@@ -235,10 +246,13 @@ async def run(
     platform_filter: str | None = None,
     full: bool = False,
 ) -> None:
-    boards = load_config(platform_filter)
+    boards, blocked = load_config(platform_filter)
     logger.info("Loaded %d board configs", len(boards))
 
     api_url, token = get_d1_config()
+
+    # Clean first: a failed scrape must never stop the cleanup
+    clean_db(api_url, token, blocked)
 
     # Get known URLs for incremental mode
     known_urls: set[str] = set()
@@ -263,7 +277,7 @@ async def run(
 
     new_jobs: list[Job] = []
     for job_list in results:
-        new_jobs.extend(job_list)
+        new_jobs.extend(j for j in job_list if j.company not in blocked)
     logger.info("Scraped %d new jobs", len(new_jobs))
 
     # Deduplicate (merges vc_backers across boards)
@@ -273,8 +287,7 @@ async def run(
     logger.info("Upserting %d jobs into D1...", len(unique_jobs))
     upsert_jobs(api_url, token, unique_jobs)
 
-    # Prune old jobs
-    prune_old_jobs_db(api_url, token)
+    clean_db(api_url, token, blocked)
 
     total = get_db_job_count(api_url, token)
     logger.info("Done. %d total jobs in DB.", total)
