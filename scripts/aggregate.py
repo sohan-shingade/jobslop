@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import os
+import sqlite3
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -26,7 +27,7 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from scrapers.base import Job
+from scrapers.base import MAX_AGE_DAYS, Job
 from scrapers.consider import ConsiderScraper
 from scrapers.getro import GetroScraper
 from scrapers.simplify import SimplifyScraper
@@ -34,6 +35,7 @@ from scrapers.workday import WorkdayScraper
 from scrapers.greenhouse import GreenhouseScraper
 from scrapers.lever import LeverScraper
 from scrapers.ashby import AshbyScraper
+from scrapers.greylock import GreylockScraper
 from scripts.deduplicate import deduplicate
 
 logging.basicConfig(
@@ -46,7 +48,6 @@ logger = logging.getLogger(__name__)
 
 CONFIG_FILE = ROOT / "config" / "vc_boards.yaml"
 MAX_CONCURRENT = 5
-MAX_AGE_DAYS = 30
 MAX_JOBS = 20_000  # D1 free tier allows 5M rows read a day; every full scan costs one read per row
 # D1 free tier allows 100k rows written a day, and each job costs about 12 (table, indexes, backers).
 # We run 4 times a day. Cleanup may use half of a run's budget so new jobs always get the rest.
@@ -56,6 +57,7 @@ rows_written = 0
 
 PLATFORM_SCRAPERS = {
     "consider": ConsiderScraper,
+    "greylock": GreylockScraper,
     "getro": GetroScraper,
     "simplify": SimplifyScraper,
     "workday": WorkdayScraper,
@@ -69,6 +71,8 @@ PLATFORM_SCRAPERS = {
 
 def get_d1_config():
     load_dotenv(ROOT / ".env")
+    if os.getenv("JOBSLOP_SQLITE"):
+        return "", ""
     acct_id = os.getenv("CLOUDFLARE_ACCT_ID", "")
     db_id = os.getenv("CLOUDFLARE_DB_ID", "")
     api_key = os.getenv("CLOUDFLARE_API_KEY", "")
@@ -79,9 +83,34 @@ def get_d1_config():
     return url, api_key
 
 
+local_db = None
+
+
+def execute_local(statements):
+    """Same result shape as D1, against a SQLite file. No write budget applies."""
+    global local_db
+    if local_db is None:
+        path = Path(os.environ["JOBSLOP_SQLITE"])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        local_db = sqlite3.connect(path)
+        local_db.row_factory = sqlite3.Row
+        local_db.execute("PRAGMA journal_mode=WAL")
+        local_db.execute("PRAGMA foreign_keys=ON")
+        local_db.executescript((ROOT / "db/schema.sql").read_text())
+    results = []
+    for sql, args in statements:
+        cur = local_db.execute(sql, args or [])
+        rows = [dict(r) for r in cur.fetchall()] if cur.description else []
+        results.append({"results": rows, "meta": {"changes": max(cur.rowcount, 0)}})
+    local_db.commit()
+    return results
+
+
 def execute_sql(api_url, token, statements, max_retries=3):
     if not statements:
         return []
+    if os.getenv("JOBSLOP_SQLITE"):
+        return execute_local(statements)
     results = []
     for sql, args in statements:
         body = {"sql": sql}
@@ -191,8 +220,9 @@ def clean_db(api_url, token, blocked: list[str]):
     rules = [
         (f"SELECT id FROM jobs WHERE company IN ({marks}) LIMIT {DELETE_BATCH}", blocked),
         (f"SELECT id FROM jobs WHERE posted_date < ? OR posted_date IS NULL ORDER BY posted_date LIMIT {DELETE_BATCH}", [age_cutoff()]),
-        (f"SELECT id FROM jobs ORDER BY posted_date DESC LIMIT {DELETE_BATCH} OFFSET {MAX_JOBS}", None),
     ]
+    if not os.getenv("JOBSLOP_SQLITE"):
+        rules.append((f"SELECT id FROM jobs ORDER BY posted_date DESC LIMIT {DELETE_BATCH} OFFSET {MAX_JOBS}", None))
     removed = 0
     for pick, args in rules:
         while rows_written < WRITE_BUDGET // 2:

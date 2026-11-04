@@ -10,9 +10,8 @@ boards:
     board_slug: "sequoia-capital"
 
   - name: "Greylock Partners"
-    platform: consider
-    url: "https://jobs.greylock.com/jobs"
-    board_slug: "greylock-partners"
+    platform: greylock
+    url: "https://greylock.com/jobs/portfolio-jobs/"
 
   - name: "Bessemer Venture Partners"
     platform: consider
@@ -191,6 +190,103 @@ boards:
     url: "https://github.com/SimplifyJobs/New-Grad-Positions"
     source_key: "simplify_newgrad"
 
+  # === QUANT TRADING ===
+  - name: "Hudson River Trading"
+    platform: greenhouse
+    url: "https://www.hudsonrivertrading.com/careers/"
+    board_token: "wehrtyou"
+    industry: "Quant Trading"
+
+  - name: "Optiver"
+    platform: greenhouse
+    url: "https://optiver.com/working-at-optiver/career-opportunities/"
+    board_token: "optiverus"
+    industry: "Quant Trading"
+
+  - name: "IMC Trading"
+    platform: greenhouse
+    url: "https://careers.imc.com/"
+    board_token: "imc"
+    industry: "Quant Trading"
+
+  - name: "DRW"
+    platform: greenhouse
+    url: "https://drw.com/careers/"
+    board_token: "drweng"
+    industry: "Quant Trading"
+
+  - name: "Akuna Capital"
+    platform: greenhouse
+    url: "https://akunacapital.com/careers"
+    board_token: "akunacapital"
+    industry: "Quant Trading"
+
+  - name: "Tower Research Capital"
+    platform: greenhouse
+    url: "https://www.tower-research.com/open-positions"
+    board_token: "towerresearchcapital"
+    industry: "Quant Trading"
+
+  - name: "Five Rings"
+    platform: greenhouse
+    url: "https://fiverings.com/careers"
+    board_token: "fiveringsllc"
+    industry: "Quant Trading"
+
+  - name: "Virtu Financial"
+    platform: greenhouse
+    url: "https://www.virtu.com/careers/"
+    board_token: "virtu"
+    industry: "Quant Trading"
+
+  - name: "Squarepoint Capital"
+    platform: greenhouse
+    url: "https://www.squarepoint-capital.com/"
+    board_token: "squarepointcapital"
+    industry: "Quant Trading"
+
+  - name: "Geneva Trading"
+    platform: greenhouse
+    url: "https://www.genevatrading.com/careers"
+    board_token: "genevatrading"
+    industry: "Quant Trading"
+
+  - name: "Chicago Trading Company"
+    platform: greenhouse
+    url: "https://www.chicagotrading.com/careers"
+    board_token: "chicagotrading"
+    industry: "Quant Trading"
+
+  - name: "Vatic Labs"
+    platform: greenhouse
+    url: "https://www.vaticlabs.com/careers"
+    board_token: "vaticlabs"
+    industry: "Quant Trading"
+
+  - name: "XTX Markets"
+    platform: greenhouse
+    url: "https://www.xtxmarkets.com/careers/"
+    board_token: "xtxmarketstechnologies"
+    industry: "Quant Trading"
+
+  - name: "PDT Partners"
+    platform: greenhouse
+    url: "https://pdtpartners.com/careers"
+    board_token: "pdtpartners"
+    industry: "Quant Trading"
+
+  - name: "Belvedere Trading"
+    platform: lever
+    url: "https://www.belvederetrading.com/careers"
+    board_token: "belvederetrading"
+    industry: "Quant Trading"
+
+  - name: "Voleon"
+    platform: ashby
+    url: "https://voleon.com/careers/"
+    board_token: "voleon"
+    industry: "Quant Trading"
+
   # === BANKS — WORKDAY ===
   - name: "Blackstone"
     platform: workday
@@ -218,6 +314,7 @@ boards:
     platform: greenhouse
     url: "https://www.janestreet.com/join-jane-street/open-positions/"
     board_token: "janestreet"
+    industry: "Quant Trading"
 
   - name: "Point72"
     platform: greenhouse
@@ -312,7 +409,7 @@ boards:
     platform: greenhouse
     url: "https://www.jumptrading.com/careers"
     board_token: "jumptrading"
-    industry: "Crypto"
+    industry: "Quant Trading"
 
   - name: "Jump Crypto"
     platform: greenhouse
@@ -330,7 +427,7 @@ boards:
     platform: greenhouse
     url: "https://www.flowtraders.com/careers"
     board_token: "flowtraders"
-    industry: "Crypto"
+    industry: "Quant Trading"
 
   - name: "GSR Markets"
     platform: greenhouse
@@ -528,8 +625,8 @@ boards:
     url: "https://firstround.com/talent/"
 
   - name: "Atomico"
-    platform: custom
-    url: "https://careers.atomico.com/"
+    platform: getro
+    url: "https://careers.atomico.com/jobs"
 
   - name: "Contrary"
     platform: custom
