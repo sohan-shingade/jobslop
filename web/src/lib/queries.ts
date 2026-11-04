@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { db } from "./db";
 import type { Job, Filters, SortField, SortDir, FilterOptions } from "./types";
 
@@ -100,9 +101,9 @@ function buildOrderBy(sort: SortField, dir: SortDir): string {
     company: "j.company",
   }[sort] || "j.posted_date";
 
-  // Handle nulls: push them to the end
+  // SQLite already sorts NULLs last on DESC, and this form can use the column's index.
   if (dir === "desc") {
-    return `ORDER BY ${col} IS NULL, ${col} DESC`;
+    return `ORDER BY ${col} DESC`;
   }
   return `ORDER BY ${col} IS NULL, ${col} ASC`;
 }
@@ -138,7 +139,7 @@ function rowToJob(row: Row): Job {
   };
 }
 
-export async function fetchJobs(
+async function queryJobs(
   filters: Filters,
   sort: SortField = "posted_date",
   dir: SortDir = "desc",
@@ -150,7 +151,7 @@ export async function fetchJobs(
 
   // Count query
   const countResult = await db.execute({
-    sql: `SELECT COUNT(DISTINCT j.id) as cnt FROM jobs j ${where}`,
+    sql: `SELECT COUNT(*) as cnt FROM jobs j ${where}`,
     args: params,
   });
   const total = countResult.rows[0].cnt as number;
@@ -158,11 +159,9 @@ export async function fetchJobs(
   // Data query with VC backers aggregated
   const dataResult = await db.execute({
     sql: `
-      SELECT j.*, GROUP_CONCAT(DISTINCT b.vc_name) as vc_backers
+      SELECT j.*, (SELECT GROUP_CONCAT(b.vc_name) FROM job_vc_backers b WHERE b.job_id = j.id) as vc_backers
       FROM jobs j
-      LEFT JOIN job_vc_backers b ON j.id = b.job_id
       ${where}
-      GROUP BY j.id
       ${orderBy}
       LIMIT ? OFFSET ?
     `,
@@ -173,7 +172,7 @@ export async function fetchJobs(
   return { jobs, total };
 }
 
-export async function fetchFilterOptions(): Promise<FilterOptions> {
+async function queryFilterOptions(): Promise<FilterOptions> {
   const [seniorities, departments, industries, vcs, companySizes, locations, categories, hiringPeriods, educationLevels] =
     await Promise.all([
       db.execute("SELECT DISTINCT seniority FROM jobs WHERE seniority IS NOT NULL AND seniority != '' ORDER BY seniority"),
@@ -199,3 +198,7 @@ export async function fetchFilterOptions(): Promise<FilterOptions> {
     education_levels: educationLevels.rows.map((r) => r.value as string),
   };
 }
+
+// D1's free tier allows 5M rows read a day, and these queries scan the table. Cache them.
+export const fetchJobs = unstable_cache(queryJobs, ["jobs"], { revalidate: 600 });
+export const fetchFilterOptions = unstable_cache(queryFilterOptions, ["filter-options"], { revalidate: 21600 });

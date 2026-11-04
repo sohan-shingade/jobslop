@@ -2,7 +2,7 @@ name: Scrape VC Job Boards
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Run every hour
+    - cron: '0 */6 * * *'  # Every 6 hours
   workflow_dispatch:  # Manual trigger
 
 jobs:
