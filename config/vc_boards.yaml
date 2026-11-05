@@ -1,6 +1,7 @@
 # Never list these companies. Existing rows are deleted on every run.
 blocked_companies:
   - BMO
+  - Bank of Montreal
 
 boards:
   # === CONSIDER-POWERED (POST /api-boards/search-jobs) ===
