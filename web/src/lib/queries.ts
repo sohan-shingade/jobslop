@@ -184,7 +184,7 @@ async function queryFilterOptions(): Promise<FilterOptions> {
       db.execute("SELECT DISTINCT company_size FROM jobs WHERE company_size IS NOT NULL AND company_size != '' ORDER BY company_size"),
       db.execute("SELECT DISTINCT location FROM jobs WHERE location IS NOT NULL AND location != '' ORDER BY location LIMIT 200"),
       db.execute("SELECT DISTINCT category FROM jobs WHERE category IS NOT NULL AND category != '' ORDER BY category"),
-      db.execute("SELECT DISTINCT value FROM jobs, json_each(jobs.hiring_period) WHERE hiring_period IS NOT NULL ORDER BY value"),
+      db.execute("SELECT DISTINCT value FROM jobs, json_each(jobs.hiring_period) WHERE hiring_period IS NOT NULL ORDER BY value DESC"),
       db.execute("SELECT DISTINCT value FROM jobs, json_each(jobs.education_level) WHERE education_level IS NOT NULL ORDER BY value"),
     ]);
 

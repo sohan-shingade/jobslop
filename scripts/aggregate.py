@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from scrapers.base import MAX_AGE_DAYS, Job
+from scrapers.base import MAX_AGE_DAYS, Job, current_cycle
 from scrapers.consider import ConsiderScraper
 from scrapers.getro import GetroScraper
 from scrapers.simplify import SimplifyScraper
@@ -233,6 +233,17 @@ def clean_db(api_url, token, blocked: list[str]):
                 break
     if removed:
         logger.info("Removed %d old or blocked jobs from DB", removed)
+    # Rows keep the cycle they were tagged with. Once next year's cycle opens, a past-year tag the title
+    # never stated was only a guess: move it to the current cycle.
+    cycle, old = current_cycle(), current_cycle() - 1
+    result = execute_sql(api_url, token, [(
+        """UPDATE jobs SET hiring_period = replace(replace(hiring_period, ?, ?), ?, ?)
+           WHERE (hiring_period LIKE ? OR hiring_period LIKE ?) AND title NOT LIKE ?""",
+        [f'"{old} Summer"', f'"{cycle} Summer"', f'"{old} New Grad"', f'"{cycle} New Grad"',
+         f'%"{old} Summer"%', f'%"{old} New Grad"%', f"%{old}%"],
+    )])[0]
+    if result["meta"]["changes"]:
+        logger.info("Moved %d jobs to the %d hiring cycle", result["meta"]["changes"], cycle)
 
 
 def get_db_job_count(api_url, token) -> int:
