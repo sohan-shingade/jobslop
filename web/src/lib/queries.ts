@@ -139,22 +139,25 @@ function rowToJob(row: Row): Job {
   };
 }
 
-async function queryJobs(
-  filters: Filters,
-  sort: SortField = "posted_date",
-  dir: SortDir = "desc",
-  page: number = 1
-): Promise<{ jobs: Job[]; total: number }> {
+// COUNT(*) reads every row that matches, so it is cached by filters alone: paging and sorting reuse it.
+async function queryCount(filters: Filters): Promise<number> {
   const { where, params } = buildWhereClause(filters);
-  const orderBy = buildOrderBy(sort, dir);
-  const offset = (page - 1) * PAGE_SIZE;
-
-  // Count query
-  const countResult = await db.execute({
+  const result = await db.execute({
     sql: `SELECT COUNT(*) as cnt FROM jobs j ${where}`,
     args: params,
   });
-  const total = countResult.rows[0].cnt as number;
+  return result.rows[0].cnt as number;
+}
+
+async function queryPage(
+  filters: Filters,
+  sort: SortField,
+  dir: SortDir,
+  page: number
+): Promise<Job[]> {
+  const { where, params } = buildWhereClause(filters);
+  const orderBy = buildOrderBy(sort, dir);
+  const offset = (page - 1) * PAGE_SIZE;
 
   // Data query with VC backers aggregated
   const dataResult = await db.execute({
@@ -168,8 +171,7 @@ async function queryJobs(
     args: [...params, PAGE_SIZE, offset],
   });
 
-  const jobs = dataResult.rows.map(rowToJob);
-  return { jobs, total };
+  return dataResult.rows.map(rowToJob);
 }
 
 async function queryFilterOptions(): Promise<FilterOptions> {
@@ -200,5 +202,17 @@ async function queryFilterOptions(): Promise<FilterOptions> {
 }
 
 // D1's free tier allows 5M rows read a day, and these queries scan the table. Cache them.
-export const fetchJobs = unstable_cache(queryJobs, ["jobs"], { revalidate: 600 });
-export const fetchFilterOptions = unstable_cache(queryFilterOptions, ["filter-options"], { revalidate: 21600 });
+// Jobs only change when the scraper runs (every 6 hours), so an hour of staleness costs nothing.
+const cachedCount = unstable_cache(queryCount, ["job-count"], { revalidate: 3600 });
+const cachedPage = unstable_cache(queryPage, ["jobs-page"], { revalidate: 3600 });
+export const fetchFilterOptions = unstable_cache(queryFilterOptions, ["filter-options"], { revalidate: 86400 });
+
+export async function fetchJobs(
+  filters: Filters,
+  sort: SortField = "posted_date",
+  dir: SortDir = "desc",
+  page: number = 1
+): Promise<{ jobs: Job[]; total: number }> {
+  const [jobs, total] = await Promise.all([cachedPage(filters, sort, dir, page), cachedCount(filters)]);
+  return { jobs, total };
+}
