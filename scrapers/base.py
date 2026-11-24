@@ -91,6 +91,12 @@ def categorize_role(title: str) -> str:
             return category
 
 
+def current_cycle() -> int:
+    """Hiring year for interns and new grads: recruiting for next year opens around August."""
+    now = datetime.now(timezone.utc)
+    return now.year + 1 if now.month >= 8 else now.year
+
+
 def classify_hiring_period(title: str, seniority: str | None = None, job_type: str | None = None) -> list[str]:
     """Classify a job into hiring periods based on title and metadata."""
     t = title.lower()
@@ -113,7 +119,9 @@ def classify_hiring_period(title: str, seniority: str | None = None, job_type: s
         and not re.search(r'(class of|graduating|graduat\w+ in)\s*2027', t)
     )
     has_2027_start = has_2027_adjacent or has_2027_with_intern
-    if has_2027_start:
+    if not has_2027_start and re.search(r'(class of|graduating|graduat\w+ in)\s*2027', t):
+        periods.append("2027 New Grad")   # "New Grad (Class of 2027)" is a 2027 new-grad role
+    elif has_2027_start:
         if "intern" in t or "co-op" in t or "co op" in t:
             periods.append("2027 Summer")
         elif "new grad" in t or "new graduate" in t:
@@ -138,14 +146,15 @@ def classify_hiring_period(title: str, seniority: str | None = None, job_type: s
         is_new_grad = "new grad" in t or "new graduate" in t or "entry level" in t or "associate" in sen
         is_junior = "junior" in sen or sen == "junior"
 
+        cycle = current_cycle()
         if is_intern:
-            periods.append("2026 Summer")
+            periods.append(f"{cycle} Summer")
         elif is_new_grad:
-            periods.append("2026 New Grad")
+            periods.append(f"{cycle} New Grad")
             periods.append("Currently Hiring")
         elif is_junior:
             periods.append("Currently Hiring")
-            periods.append("2026 New Grad")
+            periods.append(f"{cycle} New Grad")
         else:
             periods.append("Currently Hiring")
 
